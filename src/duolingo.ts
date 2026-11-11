@@ -122,7 +122,9 @@ export async function recognizeDuolingoScreenshot(file:File):Promise<DuolingoRes
  tileContext.imageSmoothingQuality='high';
  const sourceHeight=img.naturalWidth;
  const scale=img.naturalWidth/width;
- tileContext.drawImage(img,0,top*scale,sourceHeight,sourceHeight,0,0,192,192);
+ // The color-transition edge is quantized on the 512px detection canvas.
+ // Compensate one analysis pixel so sprite edges align with calibrated tiles.
+ tileContext.drawImage(img,0,(top+1)*scale,sourceHeight,sourceHeight,0,0,192,192);
  const data=tileContext.getImageData(0,0,192,192);
  const squares:string[]=[],confidences:number[]=[],uncertainSquares:string[]=[];
  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
