@@ -1171,3 +1171,85 @@ summary::marker {
     font-size: 21px;
   }
 }
+.board-compare {
+  display: flex;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 4px;
+  background: #e9e6ef;
+  gap: 4px;
+}
+.board-compare button {
+  flex: 1;
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--color-text-soft);
+  background: transparent;
+}
+.board-compare button[aria-pressed="true"] {
+  background: white;
+  color: var(--color-primary-2);
+  box-shadow: 0 2px 6px #0001;
+}
+.source-board-card {
+  padding: 7px;
+  background: white;
+  border-radius: 18px;
+  border: 1px solid var(--color-border);
+}
+.source-board {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.source-board-card p {
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--color-text-soft);
+  line-height: 1.6;
+}
+.square-review > strong {
+  width: 100%;
+  font-size: 14px;
+}
+.square-comparison {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+  padding: 12px 0;
+}
+.square-comparison > div {
+  text-align: center;
+}
+.source-square,
+.recognized-square {
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.recognized-square {
+  background: var(--board-light);
+  font-size: 60px;
+  font-family: "DejaVu Sans", serif;
+  color: #302923;
+}
+.square-comparison small {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-text-soft);
+}
+.quick-piece-picker {
+  width: 100%;
+}
+.quick-piece-picker .piecepalette {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
 import { scanImage, parsePlacement, type ScanOutcome } from "./vision";
 import { validatePlacement } from "./position";
+import { SourceBoard } from "./components/scanner/SourceBoard";
 import { ActionStrip } from "./components/analysis/ActionStrip";
 const glyphs: Record<string, string> = {
   K: "♔",
@@ -63,6 +64,8 @@ export function ScanEditor({
 }) {
   const requestRef = useRef(0);
   const boardRef = useRef<HTMLDivElement>(null);
+  const [showOriginal, setShowOriginal] = useState(false);
+  const [quickEdit, setQuickEdit] = useState(false);
   const [manuallyEdited, setManuallyEdited] = useState(false);
   const [editing, setEditing] = useState(false),
     [focusedSquare, setFocusedSquare] = useState<string | null>(null);
@@ -93,6 +96,8 @@ export function ScanEditor({
     setConfirmed(false);
     setTurnConfirmed(false);
     setFocusedSquare(null);
+    setShowOriginal(false);
+    setQuickEdit(false);
     setError("");
     setResult(null);
     try {
@@ -180,52 +185,85 @@ export function ScanEditor({
         </div>
       ) : (
         <>
-          <div ref={boardRef} className="editorboard">
-            {Array.from({ length: 64 }, (_, n) => {
-              const row = Math.floor(n / 8),
-                col = n % 8,
-                idx = orientation === "white" ? n : 63 - n;
-              return (
-                <button
-                  key={n}
-                  className={`editSquare ${(row + col) % 2 ? "dark" : "light"} ${uncertain.includes("abcdefgh"[idx % 8] + (8 - Math.floor(idx / 8))) ? "uncertain" : ""} ${focusedSquare === "abcdefgh"[idx % 8] + (8 - Math.floor(idx / 8)) ? "focused" : ""}`}
-                  aria-label={`${editing ? "Edit" : "Review"} ${"abcdefgh"[idx % 8]}${8 - Math.floor(idx / 8)}`}
-                  onClick={() => {
-                    if (!editing) {
-                      setFocusedSquare(
-                        "abcdefgh"[idx % 8] + (8 - Math.floor(idx / 8)),
+          {result?.boardCrop && (
+            <div
+              className="board-compare"
+              role="group"
+              aria-label="Board comparison"
+            >
+              <button
+                aria-pressed={!showOriginal}
+                onClick={() => setShowOriginal(false)}
+              >
+                Recognized board
+              </button>
+              <button
+                aria-pressed={showOriginal}
+                onClick={() => setShowOriginal(true)}
+              >
+                Original screenshot
+              </button>
+            </div>
+          )}
+          {showOriginal && result?.boardCrop ? (
+            <div className="source-board-card">
+              <SourceBoard
+                image={image}
+                crop={result.boardCrop}
+                orientation={orientation}
+                sourceOrientation={result.orientation}
+              />
+              <p>Compare the pieces, then switch back to correct any square.</p>
+            </div>
+          ) : (
+            <div ref={boardRef} className="editorboard">
+              {Array.from({ length: 64 }, (_, n) => {
+                const row = Math.floor(n / 8),
+                  col = n % 8,
+                  idx = orientation === "white" ? n : 63 - n;
+                return (
+                  <button
+                    key={n}
+                    className={`editSquare ${(row + col) % 2 ? "dark" : "light"} ${uncertain.includes("abcdefgh"[idx % 8] + (8 - Math.floor(idx / 8))) ? "uncertain" : ""} ${focusedSquare === "abcdefgh"[idx % 8] + (8 - Math.floor(idx / 8)) ? "focused" : ""}`}
+                    aria-label={`${editing ? "Edit" : "Review"} ${"abcdefgh"[idx % 8]}${8 - Math.floor(idx / 8)}`}
+                    onClick={() => {
+                      if (!editing) {
+                        setQuickEdit(false);
+                        setFocusedSquare(
+                          "abcdefgh"[idx % 8] + (8 - Math.floor(idx / 8)),
+                        );
+                        return;
+                      }
+                      setManuallyEdited(true);
+                      setPieces((old) =>
+                        old.map((value, i) => (i === idx ? selected : value)),
                       );
-                      return;
-                    }
-                    setManuallyEdited(true);
-                    setPieces((old) =>
-                      old.map((value, i) => (i === idx ? selected : value)),
-                    );
-                    setConfirmed(false);
-                    const name =
-                      "abcdefgh"[idx % 8] + (8 - Math.floor(idx / 8));
-                    setUncertain((old) => old.filter((s) => s !== name));
-                  }}
-                >
-                  <span
-                    className={
-                      pieces[idx] === pieces[idx].toUpperCase()
-                        ? "white-piece"
-                        : "black-piece"
-                    }
+                      setConfirmed(false);
+                      const name =
+                        "abcdefgh"[idx % 8] + (8 - Math.floor(idx / 8));
+                      setUncertain((old) => old.filter((s) => s !== name));
+                    }}
                   >
-                    {glyphs[pieces[idx]] || ""}
-                  </span>
-                  {col === 0 && (
-                    <small className="rank">{8 - Math.floor(idx / 8)}</small>
-                  )}
-                  {row === 7 && (
-                    <small className="file">{"abcdefgh"[idx % 8]}</small>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+                    <span
+                      className={
+                        pieces[idx] === pieces[idx].toUpperCase()
+                          ? "white-piece"
+                          : "black-piece"
+                      }
+                    >
+                      {glyphs[pieces[idx]] || ""}
+                    </span>
+                    {col === 0 && (
+                      <small className="rank">{8 - Math.floor(idx / 8)}</small>
+                    )}
+                    {row === 7 && (
+                      <small className="file">{"abcdefgh"[idx % 8]}</small>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <div className="review-card">
             <div className="review-card-title">
               <strong>
@@ -266,6 +304,8 @@ export function ScanEditor({
                     key={square}
                     className={focusedSquare === square ? "chosen" : ""}
                     onClick={() => {
+                      setShowOriginal(false);
+                      setQuickEdit(false);
                       setFocusedSquare(square);
                       boardRef.current?.scrollIntoView({
                         block: "start",
@@ -282,6 +322,30 @@ export function ScanEditor({
             {focusedSquare && (
               <div className="square-review">
                 <strong>Review {focusedSquare}</strong>
+                {result?.boardCrop && (
+                  <div className="square-comparison">
+                    <div>
+                      <SourceBoard
+                        image={image}
+                        crop={result.boardCrop}
+                        square={focusedSquare}
+                        sourceOrientation={result.orientation}
+                      />
+                      <small>Original</small>
+                    </div>
+                    <div>
+                      <span className="recognized-square">
+                        {glyphs[
+                          pieces[
+                            (8 - Number(focusedSquare[1])) * 8 +
+                              "abcdefgh".indexOf(focusedSquare[0])
+                          ]
+                        ] || "—"}
+                      </span>
+                      <small>Recognized</small>
+                    </div>
+                  </div>
+                )}
                 <button
                   className="secondary"
                   onClick={() => {
@@ -296,10 +360,45 @@ export function ScanEditor({
                 </button>
                 <button
                   className="text-button"
-                  onClick={() => setEditing(true)}
+                  onClick={() => {
+                    setQuickEdit((v) => !v);
+                  }}
                 >
-                  Edit piece
+                  {quickEdit ? "Close piece picker" : "Edit piece"}
                 </button>
+                {quickEdit && (
+                  <div className="quick-piece-picker">
+                    <p>Tap the correct piece for {focusedSquare}.</p>
+                    <div className="piecepalette">
+                      {palette.map((piece) => (
+                        <button
+                          key={piece}
+                          aria-label={
+                            piece === "."
+                              ? "Set square empty"
+                              : `Set square to ${piece}`
+                          }
+                          onClick={() => {
+                            const idx =
+                              (8 - Number(focusedSquare[1])) * 8 +
+                              "abcdefgh".indexOf(focusedSquare[0]);
+                            setPieces((old) =>
+                              old.map((p, i) => (i === idx ? piece : p)),
+                            );
+                            setUncertain((old) =>
+                              old.filter((s) => s !== focusedSquare),
+                            );
+                            setManuallyEdited(true);
+                            setConfirmed(false);
+                            setQuickEdit(false);
+                          }}
+                        >
+                          {piece === "." ? "×" : glyphs[piece]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             <button

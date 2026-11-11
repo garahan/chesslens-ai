@@ -54,7 +54,7 @@ with sync_playwright() as p:
  page=browser.new_page(viewport={'width':390,'height':844},device_scale_factor=2,is_mobile=True,has_touch=True)
  errors=[]
  page.on('pageerror',lambda e:errors.append(str(e)))
- page.route('**/src/vision.ts',lambda route:route.fulfill(status=200,content_type='application/javascript',body=mock))
+ page.route('**/src/vision.ts*',lambda route:route.fulfill(status=200,content_type='application/javascript',body=mock))
  page.goto(BASE_URL)
  page.locator('input[type=file]').first.set_input_files(str(out/'board-input.png'))
  page.get_by_role('button',name='Review uncertain square e4',exact=True).wait_for()
@@ -69,10 +69,8 @@ with sync_playwright() as p:
  assert page.get_by_role('button',name='Review uncertain square e4',exact=True).count()==0
  page.get_by_role('button',name='Review uncertain square d5',exact=True).last.click()
  page.get_by_role('button',name='Edit piece',exact=True).click()
- page.get_by_role('button',name='Erase piece',exact=True).click()
- page.get_by_role('button',name='Edit d5',exact=True).click()
+ page.get_by_role('button',name='Set square empty',exact=True).click()
  assert page.locator('.editSquare.uncertain').count()==0
- page.get_by_role('button',name='Done editing',exact=True).click()
  assert analyze.is_disabled()
  page.get_by_role('checkbox',name='I verified the piece positions and orientation.').check()
  assert analyze.is_enabled()
