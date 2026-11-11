@@ -13,3 +13,11 @@ npm run build
 Vercel: Vite, build `npm run build`, output `dist`.
 
 The source contains numerical Duolingo piece silhouettes, not full screenshots or copyrighted character illustrations. The chess engine uses Stockfish GPLv3. The third-party fenshot package is MIT licensed.
+
+### Mobile UI
+
+The app guides you through **Import → Review → Analyze**, with a purple app bar,
+cream board, compact engine variations, and camera/gallery shortcuts.
+Manual corrections and castling controls live behind secondary controls.
+See [UI structure and verification notes](docs/ui-refactor.md) for details and
+optional browser checks.

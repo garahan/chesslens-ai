@@ -1,1 +1,19 @@
-{"name":"ChessLens AI","short_name":"ChessLens","description":"Chess screenshot analysis","start_url":"/","scope":"/","display":"standalone","background_color":"#0d111b","theme_color":"#0d111b","icons":[{"src":"/icons/icon.svg","sizes":"any","type":"image/svg+xml"},{"src":"/icons/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"maskable"}]}
+{
+  "name": "ChessLens AI",
+  "short_name": "ChessLens",
+  "description": "Chess screenshot analysis",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#2E1065",
+  "theme_color": "#2E1065",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
