@@ -1,0 +1,30 @@
+{
+  "name": "chesslens-ai",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "npm run prepare:engine && tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "prepare:engine": "node scripts/copy-engine.mjs && node scripts/copy-scanner.mjs",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "predev": "npm run prepare:engine"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "stockfish": "19.0.1",
+    "lucide-react": "^0.468.0",
+    "@scoriiu/fenshot": "0.1.5",
+    "onnxruntime-web": "^1.22.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.5"
+  }
+}
