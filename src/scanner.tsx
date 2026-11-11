@@ -1,0 +1,29 @@
+import {useEffect,useMemo,useState} from 'react';
+import {Chess} from 'chess.js';
+import {scanImage,parsePlacement,type ScanOutcome} from './vision';
+import {validatePlacement} from './position';
+const glyphs:Record<string,string>={K:'♔',Q:'♕',R:'♖',B:'♗',N:'♘',P:'♙',k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
+const palette=['K','Q','R','B','N','P','k','q','r','b','n','p','.'];
+const starting=parsePlacement('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR');
+function fenPlacement(squares:string[]){return Array.from({length:8},(_,rank)=>{let row='',empty=0;for(let col=0;col<8;col++){const piece=squares[rank*8+col];if(piece==='.')empty++;else{if(empty){row+=empty;empty=0;}row+=piece;}}if(empty)row+=empty;return row;}).join('/');}
+export function ScanEditor({image,file,onAnalyze}:{image:string,file:File|null,onAnalyze:(fen:string)=>void}){
+ const [pieces,setPieces]=useState<string[]>(starting),[selected,setSelected]=useState('P'),[turn,setTurn]=useState<'w'|'b'>('w'),[orientation,setOrientation]=useState<'white'|'black'>('white'),[castling,setCastling]=useState<string[]>([]),[error,setError]=useState(''),[scanning,setScanning]=useState(false),[result,setResult]=useState<ScanOutcome|null>(null),[scannedFile,setScannedFile]=useState<File|null>(null);
+ const issues=useMemo(()=>validatePlacement(pieces,turn),[pieces,turn]);
+ const fen=useMemo(()=>`${fenPlacement(pieces)} ${turn} ${castling.length?['K','Q','k','q'].filter(c=>castling.includes(c)).join(''):'-'} - 0 1`,[pieces,turn,castling]);
+ const detect=async()=>{if(!file){setError('Choose a chess screenshot first.');return;}setScanning(true);setError('');setResult(null);try{const detected=await scanImage(file);if(!detected){setError('No chessboard detected. Try a clearer screenshot.');return;}setPieces(detected.squares);setOrientation(detected.orientation);setResult(detected);setScannedFile(file);setCastling([]);if(!detected.reliable)setError('Low-confidence scan. Review every square before analysis.');}catch(e){setError(`Scanner could not run: ${e instanceof Error?e.message:'unknown error'}`);}finally{setScanning(false);}};
+ useEffect(()=>{setResult(null);setScannedFile(null);setError('');},[file]);
+ const analyze=()=>{try{if(issues.errors.length)throw Error(issues.errors.join('; '));const board=new Chess(fen);if(!board.isGameOver()&&!board.moves().length)throw Error('No legal moves');onAnalyze(board.fen());setError('');}catch(e){setError(`Fix the position: ${e instanceof Error?e.message:'invalid position'}`);}};
+ return <div className="scaneditor"><div className="editHeading">1. Detect the chessboard <small>Processed in your browser, not uploaded.</small></div><div className="cropframe"><img src={image} alt="Uploaded chess screenshot"/></div><button className="primary" disabled={scanning||!file} onClick={detect}>{scanning?'Scanning 64 squares…':result&&scannedFile===file?'Scan again':'✦ Recognize pieces with AI'}</button>
+ {result&&<div className="recognitionCard"><strong>{result.reliable?'✓ Scan ready to review':'⚠ Check the recognized pieces'}</strong><span>Average confidence: {(result.meanConfidence*100).toFixed(1)}% · Lowest: {(result.minConfidence*100).toFixed(1)}%</span></div>}
+ <div className="editHeading">2. Verify and correct <small>Choose a piece and tap squares; × erases.</small></div>
+ <div className="editcontrols"><label>Orientation <select value={orientation} onChange={e=>setOrientation(e.target.value as 'white'|'black')}><option value="white">White at bottom</option><option value="black">Black at bottom</option></select></label><label>Side to move <select value={turn} onChange={e=>setTurn(e.target.value as 'w'|'b')}><option value="w">White</option><option value="b">Black</option></select></label></div>
+ <div className="editorboard">{Array.from({length:64},(_,n)=>{const row=Math.floor(n/8),col=n%8,idx=orientation==='white'?n:63-n;return <button key={n} className={`editSquare ${(row+col)%2?'dark':'light'}`} aria-label={`Set ${'abcdefgh'[idx%8]}${8-Math.floor(idx/8)} to ${selected}`} onClick={()=>setPieces(old=>old.map((value,i)=>i===idx?selected:value))}><span>{glyphs[pieces[idx]]||''}</span></button>;})}</div>
+ <div className="piecepalette">{palette.map(p=><button key={p} aria-label={p==='.'?'Erase piece':`Select ${p}`} className={selected===p?'chosen':''} onClick={()=>setSelected(p)}>{p==='.'?'×':glyphs[p]}</button>)}</div>
+ <div className="editoractions"><button onClick={()=>{setPieces(Array(64).fill('.'));setResult(null);}}>Clear board</button><button onClick={()=>{setPieces([...starting]);setResult(null);}}>Starting position</button><button onClick={()=>setPieces(old=>old.map(p=>p==='.'?p:p===p.toUpperCase()?p.toLowerCase():p.toUpperCase()))}>Swap colors</button></div>
+ <div className="editHeading">3. Confirm position <small>Castling cannot be recovered from a screenshot. Enable only if legal.</small></div>
+ <div className="castlingRights">{([['K','White O-O'],['Q','White O-O-O'],['k','Black O-O'],['q','Black O-O-O']] as const).map(([key,label])=><label key={key}><input type="checkbox" checked={castling.includes(key)} onChange={e=>setCastling(old=>e.target.checked?[...old,key]:old.filter(x=>x!==key))}/>{label}</label>)}</div>
+ {issues.errors.length>0&&<div className="notice" role="alert">Position needs correction: {issues.errors.join('; ')}</div>}
+ {issues.warnings.length>0&&<div className="recognitionCard">Review: {issues.warnings.join('; ')}</div>}
+ <code className="editorfen">{fen}</code>{error&&<div className="notice" role="alert">{error}</div>}
+ <button className="primary" disabled={scanning||issues.errors.length>0} onClick={analyze}>Analyze this position →</button></div>;
+}
