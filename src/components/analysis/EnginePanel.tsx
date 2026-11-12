@@ -14,6 +14,8 @@ export function EnginePanel({
   onToggle,
   limit,
   onLimit,
+  positionStatus,
+  terminal,
 }: {
   variations: Variation[];
   status: string;
@@ -21,6 +23,8 @@ export function EnginePanel({
   onToggle: () => void;
   limit: AnalysisLimit;
   onLimit: (limit: AnalysisLimit) => void;
+  positionStatus?: string;
+  terminal?: boolean;
 }) {
   return (
     <section className="engine-panel" aria-label="Engine analysis">
@@ -31,7 +35,16 @@ export function EnginePanel({
             <Cpu size={14} /> Stockfish 19
           </strong>
           <span>
-            Depth {variations[0]?.depth || "—"} · {enabled ? status : "Paused"}
+            Depth {variations[0]?.depth || "—"} ·{" "}
+            {terminal
+              ? positionStatus
+              : positionStatus?.includes("draw claim")
+                ? "Draw claim available"
+                : positionStatus?.startsWith("Check")
+                  ? "Check"
+                  : enabled
+                    ? status
+                    : "Paused"}
           </span>
         </div>
         <label className="depth-limit" title="Analysis depth limit">
@@ -58,7 +71,8 @@ export function EnginePanel({
           className="switch"
           role="switch"
           aria-label="Enable engine"
-          aria-checked={enabled}
+          aria-checked={enabled && !terminal}
+          disabled={terminal}
           onClick={onToggle}
         >
           <span />
@@ -75,7 +89,11 @@ export function EnginePanel({
         ))}
         {!variations.length && (
           <p className="engine-empty" role="status">
-            {enabled ? status : "Engine paused. Resume when you’re ready."}
+            {terminal
+              ? positionStatus
+              : enabled
+                ? status
+                : "Engine paused. Resume when you’re ready."}
           </p>
         )}
       </div>

@@ -44,6 +44,7 @@ with sync_playwright() as p:
  page.locator('.recent-card').click()
  page.get_by_text('Position tools & history',exact=True).click()
  assert ' b ' in page.locator('#fen-input').input_value()
+ assert page.evaluate("JSON.parse(localStorage.getItem('chesslens-line-v1')).line.moves")==['e2e4']
  page.get_by_role('button',name='Analyze',exact=True).click()
  page.locator('.variation').first.wait_for(timeout=60000)
  # The general ONNX path must execute offline, not merely cache the app shell.

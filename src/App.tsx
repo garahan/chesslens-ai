@@ -1,3 +1,13 @@
+import {
+  replayLine,
+  statusOfLine,
+  savedGame,
+  saveGame,
+  uciOf,
+  claimDraw,
+  type GameLine,
+  type ClaimReason,
+} from "./rules";
 import { RecognitionSettings } from "./components/settings/RecognitionSettings";
 import { validateAnalysisPosition } from "./position";
 import { UpdateButton } from "./components/settings/UpdateButton";
@@ -30,13 +40,16 @@ function savedPosition() {
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 type AppMode = "home" | "review" | "analysis";
 export default function App() {
+  const [restoredLine] = useState(savedGame);
   const [restored] = useState(savedPosition);
+  const [line, setLine] = useState<GameLine>(
+    restoredLine || { rootFen: restored || START, moves: [] },
+  );
   const [scanFile, setScanFile] = useState<File | null>(null);
   const [scanSession, setScanSession] = useState(0);
   const scanRequest = useRef(0);
   const [fenInput, setFenInput] = useState(restored || START),
-    [history, setHistory] = useState<string[]>([restored || START]),
-    [index, setIndex] = useState(0),
+    [index, setIndex] = useState(restoredLine?.moves.length || 0),
     [selected, setSelected] = useState<string | null>(null),
     [flipped, setFlipped] = useState(false),
     [promote, setPromote] = useState<{ from: string; to: string } | null>(null),
@@ -66,7 +79,7 @@ export default function App() {
         return null;
       }
     }),
-    [hasPosition, setHasPosition] = useState(!!restored),
+    [hasPosition, setHasPosition] = useState(!!restoredLine || !!restored),
     [analysisRun, setAnalysisRun] = useState(0);
   const [visible, setVisible] = useState(!document.hidden);
   useEffect(() => {
@@ -82,36 +95,35 @@ export default function App() {
   const cameraRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null),
     engineRef = useRef<ChessEngine | null>(null);
-  const fen = history[index],
-    board = useMemo(() => new Chess(fen), [fen]);
+  const board = useMemo(() => replayLine(line, index), [line, index]);
+  const fen = board.fen();
+  const positionStatus = useMemo(
+    () => statusOfLine(line, index),
+    [line, index],
+  );
   useEffect(() => {
     if (hasPosition) {
+      saveGame(line, index);
       try {
         localStorage.setItem("chesslens-last-position", fen);
       } catch {}
     }
-  }, [fen, hasPosition]);
+  }, [fen, hasPosition, line, index]);
   const moves = useMemo(
     () =>
-      selected ? board.moves({ square: selected as never, verbose: true }) : [],
-    [board, selected],
+      selected && !positionStatus.terminal
+        ? board.moves({ square: selected as never, verbose: true })
+        : [],
+    [board, selected, positionStatus.terminal],
   );
-  const past = useMemo(() => {
-    const b = new Chess(history[0]);
-    const labels: string[] = [];
-    for (let i = 1; i <= index; i++) {
-      const target = history[i];
-      const m = b.moves({ verbose: true }).find((m) => {
-        const next = new Chess(b.fen());
-        next.move(m);
-        return next.fen() === target;
-      });
-      if (!m) break;
-      labels.push(`${Math.ceil(i / 2)}${i % 2 ? " ." : " ..."} ${m.san}`);
-      b.move(m);
-    }
-    return labels;
-  }, [history, index]);
+  const past = useMemo(
+    () =>
+      board.history({ verbose: true }).map((move) => {
+        const fields = move.before.split(" ");
+        return `${fields[5]}${fields[1] === "w" ? "." : "..."} ${move.san}`;
+      }),
+    [board],
+  );
   useEffect(() => {
     const eng = new ChessEngine((lines, status) => {
       setVariations(lines);
@@ -125,20 +137,28 @@ export default function App() {
   }, []);
   useEffect(() => {
     if (engineOn && mode === "analysis" && visible)
-      engineRef.current?.analyze(fen, depth);
+      engineRef.current?.analyze(fen, depth, {
+        rootFen: line.rootFen,
+        moves: line.moves.slice(0, index),
+        ...(line.claim?.ply === index ? { claim: line.claim } : {}),
+      });
     else engineRef.current?.stop();
-  }, [fen, depth, engineOn, mode, analysisRun, visible]);
+  }, [fen, depth, engineOn, mode, analysisRun, visible, line, index]);
   const move = (m: Move) => {
-    const next = new Chess(fen);
+    if (positionStatus.terminal) return;
+    const next = replayLine(line, index);
     next.move(m);
-    setHistory((h) => [...h.slice(0, index + 1), next.fen()]);
+    setLine({
+      rootFen: line.rootFen,
+      moves: [...line.moves.slice(0, index), uciOf(m)],
+    });
     setIndex((i) => i + 1);
     setSelected(null);
     setPromote(null);
     setError("");
   };
   const click = (sq: string) => {
-    if (promote) return;
+    if (promote || positionStatus.terminal) return;
     const piece = board.get(sq as never);
     if (selected) {
       const matching = moves.filter((m) => m.to === sq);
@@ -154,12 +174,18 @@ export default function App() {
     if (piece?.color === board.turn()) setSelected(sq === selected ? null : sq);
     else setSelected(null);
   };
-  const loadFen = (value: string) => {
+  const loadFen = (value: string, historyLine?: GameLine) => {
     try {
       validateAnalysisPosition(value.trim());
       const b = new Chess(value.trim());
-      setHistory([b.fen()]);
-      setIndex(0);
+      if (historyLine) {
+        if (replayLine(historyLine).fen() !== b.fen())
+          throw Error("Game history does not match this position");
+        statusOfLine(historyLine);
+      }
+      const nextLine = historyLine || { rootFen: value.trim(), moves: [] };
+      setLine(nextLine);
+      setIndex(nextLine.moves.length);
       setSelected(null);
       setFenInput(b.fen());
       setError("");
@@ -307,25 +333,28 @@ export default function App() {
               flipped,
               selected,
               moves,
-              bestMove: engineOn ? best?.uci[0] : undefined,
+              bestMove:
+                engineOn && !positionStatus.terminal ? best?.uci[0] : undefined,
               onSquare: click,
             }}
             navigation={{
               index,
-              length: history.length,
+              length: line.moves.length + 1,
               onNavigate: (i) => {
                 setIndex(i);
                 setSelected(null);
               },
-              onReset: () => loadFen(history[0]),
+              onReset: () => loadFen(line.rootFen),
             }}
             engine={{
               variations,
               status: engineState,
-              enabled: engineOn,
+              enabled: engineOn && !positionStatus.terminal,
               limit: depth,
               onLimit: setDepth,
               onToggle: () => setEngineOn((v) => !v),
+              positionStatus: positionStatus.message,
+              terminal: positionStatus.terminal,
             }}
             fenInput={{
               value: fenInput,
@@ -349,6 +378,20 @@ export default function App() {
               setSelected(null);
             }}
             past={past}
+            line={line}
+            ply={index}
+            ruleStatus={positionStatus}
+            onClaim={(reason: ClaimReason, intended?: string) => {
+              try {
+                setLine(claimDraw(line, index, reason, intended));
+                setSelected(null);
+                setPromote(null);
+              } catch (e) {
+                setError(
+                  e instanceof Error ? e.message : "Draw claim unavailable",
+                );
+              }
+            }}
           />
         )}
         <OfflineStatus />
@@ -408,7 +451,14 @@ export default function App() {
               </select>
             </label>
             <AppearanceSettings />
-            <RecognitionSettings fen={fen} />
+            <RecognitionSettings
+              fen={fen}
+              line={{
+                rootFen: line.rootFen,
+                moves: line.moves.slice(0, index),
+                ...(line.claim?.ply === index ? { claim: line.claim } : {}),
+              }}
+            />
             <UpdateButton />
             <button className="secondary" onClick={toggleFavorite}>
               {favorite ? "Remove favorite position" : "Favorite this position"}
@@ -442,7 +492,7 @@ export default function App() {
               </p>
             </div>
             <p>
-              ChessLens AI 0.8.0 · Stockfish 19
+              ChessLens AI 0.9.0 · Stockfish 19
               <br />
               Screenshot recognition runs on your device.
             </p>

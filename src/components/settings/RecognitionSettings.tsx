@@ -1,3 +1,4 @@
+import type { GameLine } from "../../rules";
 import { useState } from "react";
 import {
   readLearning,
@@ -9,7 +10,13 @@ import {
   trackPosition,
   stopTracking,
 } from "../../recognition/tracking";
-export function RecognitionSettings({ fen }: { fen: string }) {
+export function RecognitionSettings({
+  fen,
+  line,
+}: {
+  fen: string;
+  line?: GameLine;
+}) {
   const [profile, setProfile] = useState(readLearning),
     [game, setGame] = useState(getTrackedGame),
     [message, setMessage] = useState("");
@@ -64,7 +71,7 @@ export function RecognitionSettings({ fen }: { fen: string }) {
           className="secondary"
           onClick={() => {
             try {
-              if (trackPosition(fen)) {
+              if (trackPosition(fen, line)) {
                 setGame(getTrackedGame());
                 setMessage("Tracking from this position");
               } else setMessage("Device storage is unavailable");

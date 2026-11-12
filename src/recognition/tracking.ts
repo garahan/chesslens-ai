@@ -1,7 +1,13 @@
+import { replayLine, statusOfLine, uciOf, type GameLine } from "../rules.ts";
 import { Chess } from "chess.js";
 import { validateAnalysisPosition } from "../position.ts";
 export const TRACK_KEY = "chesslens-game-v1";
-export type TrackedGame = { version: 1; fen: string; updated: number };
+export type TrackedGame = {
+  version: 1;
+  fen: string;
+  updated: number;
+  line?: GameLine;
+};
 export function getTrackedGame(): TrackedGame | null {
   try {
     const value = JSON.parse(localStorage.getItem(TRACK_KEY) || "null");
@@ -13,13 +19,22 @@ export function getTrackedGame(): TrackedGame | null {
     )
       return null;
     validateAnalysisPosition(value.fen);
+    if (
+      value.line &&
+      replayLine(value.line).fen() !== new Chess(value.fen).fen()
+    )
+      return null;
+    if (value.line) statusOfLine(value.line);
     return value;
   } catch {
     return null;
   }
 }
-export function trackPosition(fen: string) {
+export function trackPosition(fen: string, line?: GameLine) {
   validateAnalysisPosition(fen);
+  if (line && replayLine(line).fen() !== new Chess(fen).fen())
+    throw Error("Tracking history does not match its position");
+  if (line) statusOfLine(line);
   try {
     localStorage.setItem(
       TRACK_KEY,
@@ -27,6 +42,7 @@ export function trackPosition(fen: string) {
         version: 1,
         fen: new Chess(fen).fen(),
         updated: Date.now(),
+        ...(line ? { line } : {}),
       }),
     );
     return true;
@@ -42,9 +58,13 @@ export function stopTracking() {
     return false;
   }
 }
-export function advanceTracking(expected: string, next: string) {
+export function advanceTracking(
+  expected: string,
+  next: string,
+  line?: GameLine,
+) {
   if (getTrackedGame()?.fen !== expected) return false;
-  return trackPosition(next);
+  return trackPosition(next, line);
 }
 export function placementOf(board: Chess) {
   return board
@@ -64,12 +84,14 @@ export type TemporalMatch = {
   compared: number;
   gap: number;
   anchor: string;
+  line: GameLine;
 };
 /** Match only zero, one, or two legal plies from an explicitly chosen anchor. */
 export function matchContinuation(
   anchor: string,
   scores: Record<string, number>[],
   maxPlies = 2,
+  history?: GameLine,
 ): TemporalMatch | null {
   if (
     scores.length !== 64 ||
@@ -81,7 +103,9 @@ export function matchContinuation(
   let board: Chess;
   try {
     validateAnalysisPosition(anchor);
-    board = new Chess(anchor);
+    board = history ? replayLine(history) : new Chess(anchor);
+    if (board.fen() !== new Chess(anchor).fen()) return null;
+    if (history) statusOfLine(history);
   } catch {
     return null;
   }
@@ -97,11 +121,19 @@ export function matchContinuation(
   const bestLocal = local.map((row) => row[0]);
   const ranked = new Map<
     string,
-    { cost: number; fen: string; moves: string[] }
+    { cost: number; fen: string; moves: string[]; uci: string[] }
   >();
   let compared = 0,
     truncated = false;
-  const walk = (moves: string[]) => {
+  const keyOf = (fen: string) => fen.split(" ").slice(0, 4).join(" ");
+  const oldMoves = board.history({ verbose: true });
+  const oldPositions = oldMoves.length
+    ? [oldMoves[0].before, ...oldMoves.map((move) => move.after)]
+    : [board.fen()];
+  const counts = new Map<string, number>();
+  for (const fen of oldPositions)
+    counts.set(keyOf(fen), (counts.get(keyOf(fen)) || 0) + 1);
+  const walk = (moves: string[], uci: string[]) => {
     if (compared >= 1600) {
       truncated = true;
       return;
@@ -120,20 +152,30 @@ export function matchContinuation(
         cost = costs.reduce((a, b) => a + b, 0);
       const prior = ranked.get(key);
       if (!prior || prior.cost > cost)
-        ranked.set(key, { cost, fen: board.fen(), moves });
+        ranked.set(key, { cost, fen: board.fen(), moves, uci });
     }
-    if (moves.length >= maxPlies) return;
+    if (
+      moves.length >= maxPlies ||
+      history?.claim ||
+      board.isInsufficientMaterial() ||
+      Number(board.fen().split(" ")[4]) >= 150 ||
+      (counts.get(keyOf(board.fen())) || 0) >= 5
+    )
+      return;
     for (const move of board.moves({ verbose: true })) {
       if (compared >= 1600) {
         truncated = true;
         break;
       }
       board.move(move);
-      walk([...moves, move.san]);
+      const key = keyOf(board.fen());
+      counts.set(key, (counts.get(key) || 0) + 1);
+      walk([...moves, move.san], [...uci, uciOf(move)]);
+      counts.set(key, counts.get(key)! - 1);
       board.undo();
     }
   };
-  walk([]);
+  walk([], []);
   if (truncated) return null;
   const options = [...ranked.values()].sort((a, b) => a.cost - b.cost);
   if (!options.length) return null;
@@ -145,5 +187,10 @@ export function matchContinuation(
     compared,
     gap,
     anchor,
+    line: {
+      rootFen: history?.rootFen || anchor,
+      moves: [...(history?.moves || []), ...options[0].uci],
+      ...(history?.claim ? { claim: history.claim } : {}),
+    },
   };
 }

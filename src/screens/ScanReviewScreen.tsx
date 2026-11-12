@@ -1,3 +1,4 @@
+import type { GameLine } from "../rules";
 import { ScanEditor } from "../scanner";
 export function ScanReviewScreen({
   image,
@@ -6,7 +7,7 @@ export function ScanReviewScreen({
 }: {
   image: string;
   file: File | null;
-  onAnalyze: (fen: string) => void;
+  onAnalyze: (fen: string, line?: GameLine) => void;
 }) {
   return (
     <section className="review-screen">

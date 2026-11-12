@@ -484,6 +484,8 @@ export async function recognizeDuolingoScreenshot(
         const match = matchContinuation(
           game.fen,
           rows.map((hit) => hit.scores),
+          2,
+          game.line,
         );
         return match ? [{ direction, match }] : [];
       });

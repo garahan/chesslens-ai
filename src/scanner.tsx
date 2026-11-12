@@ -1,3 +1,4 @@
+import type { GameLine } from "./rules";
 import { RecognitionReport } from "./components/scanner/RecognitionReport";
 import {
   RecognitionFailure,
@@ -61,7 +62,7 @@ export function ScanEditor({
 }: {
   image: string;
   file: File | null;
-  onAnalyze: (fen: string) => void;
+  onAnalyze: (fen: string, line?: GameLine) => void;
 }) {
   const [report, setReport] = useState<RecognitionDiagnostics | null>(null);
   const [lastEdit, setLastEdit] = useState<{
@@ -69,6 +70,12 @@ export function ScanEditor({
     before: string;
     uncertain: boolean;
     required: boolean;
+    metadata: {
+      castling: string[];
+      ep: string;
+      halfmove: number;
+      fullmove: number;
+    };
     learning: ReturnType<typeof learnCorrection>;
   } | null>(null);
   const [notice, setNotice] = useState("");
@@ -93,6 +100,9 @@ export function ScanEditor({
     [error, setError] = useState(""),
     [scanning, setScanning] = useState(false),
     [result, setResult] = useState<ScanOutcome | null>(null);
+  const [ep, setEp] = useState("-");
+  const [halfmove, setHalfmove] = useState(0),
+    [fullmove, setFullmove] = useState(1);
   const [requiredReview, setRequiredReview] = useState<string[]>([]);
   const activeReview = useMemo(() => {
     const indices = new Set(
@@ -102,12 +112,29 @@ export function ScanEditor({
       indices.has((8 - Number(square[1])) * 8 + "abcdefgh".indexOf(square[0])),
     );
   }, [requiredReview, pieces]);
-  const issues = useMemo(() => validatePlacement(pieces, turn), [pieces, turn]);
   const fen = useMemo(
     () =>
-      `${fenPlacement(pieces)} ${turn} ${castling.length ? ["K", "Q", "k", "q"].filter((c) => castling.includes(c)).join("") : "-"} - 0 1`,
-    [pieces, turn, castling],
+      `${fenPlacement(pieces)} ${turn} ${castling.length ? ["K", "Q", "k", "q"].filter((c) => castling.includes(c)).join("") : "-"} ${ep} ${halfmove} ${fullmove}`,
+    [pieces, turn, castling, ep, halfmove, fullmove],
   );
+  const issues = useMemo(() => {
+    const result = validatePlacement(pieces, turn);
+    if (turnConfirmed && !result.errors.length)
+      try {
+        validateAnalysisPosition(fen);
+      } catch (error) {
+        result.errors.push(
+          error instanceof Error ? error.message : "Invalid position metadata",
+        );
+      }
+    return result;
+  }, [pieces, turn, turnConfirmed, fen]);
+  const clearHistoryMetadata = () => {
+    setCastling([]);
+    setEp("-");
+    setHalfmove(0);
+    setFullmove(1);
+  };
   const detect = useCallback(async () => {
     const request = ++requestRef.current;
     if (!file) {
@@ -143,6 +170,10 @@ export function ScanEditor({
           ? detected.temporal.fen.split(" ")[2].replace("-", "").split("")
           : [],
       );
+      const state = detected.temporal?.fen.split(" ");
+      setEp(state?.[3] || "-");
+      setHalfmove(Number(state?.[4] || 0));
+      setFullmove(Number(state?.[5] || 1));
       setUncertain(detected.uncertainSquares || []);
       setRequiredReview(detected.reviewRequiredSquares || []);
       if (detected.temporal) {
@@ -179,8 +210,10 @@ export function ScanEditor({
       before: pieces[index],
       uncertain: uncertain.includes(square),
       required: requiredReview.includes(square),
+      metadata: { castling, ep, halfmove, fullmove },
       learning,
     });
+    if (pieces[index] !== piece) clearHistoryMetadata();
     setPieces((old) => old.map((value, i) => (i === index ? piece : value)));
     setUncertain((old) => old.filter((value) => value !== square));
     setRequiredReview((old) => old.filter((value) => value !== square));
@@ -209,6 +242,10 @@ export function ScanEditor({
         old.includes(square) ? old : [...old, square],
       );
     }
+    setCastling(lastEdit.metadata.castling);
+    setEp(lastEdit.metadata.ep);
+    setHalfmove(lastEdit.metadata.halfmove);
+    setFullmove(lastEdit.metadata.fullmove);
     const restored = !lastEdit.learning || undoLearning(lastEdit.learning);
     setNotice(
       restored
@@ -225,18 +262,11 @@ export function ScanEditor({
       if (issues.errors.length) throw Error(issues.errors.join("; "));
       validateAnalysisPosition(fen);
       const board = new Chess(fen);
-      if (!board.isGameOver() && !board.moves().length)
-        throw Error("No legal moves");
       const tracked = result?.temporal;
-      const fields = fen.split(" "),
-        historyFields = tracked?.fen.split(" ");
-      const usesHistory =
-        tracked &&
-        historyFields &&
-        fields.slice(0, 3).join(" ") === historyFields.slice(0, 3).join(" ");
-      const accepted = usesHistory ? tracked.fen : board.fen();
-      if (usesHistory) advanceTracking(tracked.anchor, accepted);
-      onAnalyze(accepted);
+      const accepted = board.fen();
+      const usesHistory = tracked && new Chess(tracked.fen).fen() === accepted;
+      if (usesHistory) advanceTracking(tracked.anchor, accepted, tracked.line);
+      onAnalyze(accepted, usesHistory ? tracked.line : undefined);
       setError("");
     } catch (e) {
       setError(
@@ -369,6 +399,7 @@ export function ScanEditor({
           <ActionStrip
             turn={turnConfirmed ? turn : null}
             onTurn={(value) => {
+              if (value !== turn) setEp("-");
               setTurn(value);
               setTurnConfirmed(true);
             }}
@@ -637,6 +668,7 @@ export function ScanEditor({
                   onClick={() => {
                     setLastEdit(null);
                     setNotice("");
+                    clearHistoryMetadata();
                     setPieces(Array(64).fill("."));
                     setManuallyEdited(true);
                     setUncertain([]);
@@ -648,6 +680,8 @@ export function ScanEditor({
                   onClick={() => {
                     setLastEdit(null);
                     setNotice("");
+                    clearHistoryMetadata();
+                    setCastling(["K", "Q", "k", "q"]);
                     setPieces([...starting]);
                     setManuallyEdited(true);
                     setUncertain([]);
@@ -659,6 +693,7 @@ export function ScanEditor({
                   onClick={() => {
                     setLastEdit(null);
                     setNotice("");
+                    clearHistoryMetadata();
                     setManuallyEdited(true);
                     setPieces((old) =>
                       old.map((p) =>
@@ -689,7 +724,11 @@ export function ScanEditor({
           </details>
           <details className="castling-details">
             <summary>Advanced position options</summary>
-            <p>Only enable castling if it is still legal.</p>
+            <p>
+              A screenshot cannot establish move history. Enable castling only
+              if that king and rook have never moved. Clear paths and attacked
+              squares are checked when moves are generated.
+            </p>
             <div className="castlingRights">
               {(
                 [
@@ -714,6 +753,57 @@ export function ScanEditor({
                   {label}
                 </label>
               ))}
+            </div>
+            <div className="position-metadata">
+              <label>
+                En passant target
+                <select
+                  aria-label="En passant target"
+                  value={ep}
+                  onChange={(event) => {
+                    setEp(event.target.value);
+                    setHalfmove(0);
+                  }}
+                >
+                  <option value="-">None / unknown</option>
+                  {[..."abcdefgh"].map((file) => (
+                    <option
+                      key={file}
+                      value={`${file}${turn === "w" ? "6" : "3"}`}
+                    >
+                      {file}
+                      {turn === "w" ? "6" : "3"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p>
+                Set only after the opposing pawn's immediately preceding
+                two-square advance. Illegal or king-exposing captures remain
+                unavailable.
+              </p>
+              <label>
+                Halfmoves since pawn move or capture
+                <input
+                  aria-label="Halfmove clock"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={halfmove}
+                  onChange={(event) => setHalfmove(Number(event.target.value))}
+                />
+              </label>
+              <label>
+                Move number
+                <input
+                  aria-label="Move number"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={fullmove}
+                  onChange={(event) => setFullmove(Number(event.target.value))}
+                />
+              </label>
             </div>
           </details>
           {(result || manuallyEdited) && issues.errors.length > 0 && (

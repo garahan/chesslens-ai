@@ -1,3 +1,9 @@
+import {
+  replayLine,
+  ruleStatus,
+  statusOfLine,
+  type GameLine,
+} from "./rules.ts";
 import { validateAnalysisPosition } from "./position.ts";
 import { Chess } from "chess.js";
 export type AnalysisLimit = number | "infinite";
@@ -49,15 +55,22 @@ export function parseInfo(line: string, fen: string): Variation | null {
   if (!score) return null;
   const pv = line.split(" pv ")[1]?.trim().split(/\s+/) || [];
   if (!pv.length || !/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(pv[0])) return null;
-  const normalized =
-    (new Chess(fen).turn() === "b" ? -1 : 1) * Number(score[2]);
+  let side: string;
+  try {
+    side = new Chess(fen).turn();
+  } catch {
+    return null;
+  }
+  const normalized = (side === "b" ? -1 : 1) * Number(score[2]);
+  const san = toSan(fen, pv);
+  if (!san.length) return null;
   return {
     rank,
     depth,
     cp: score[1] === "cp" ? normalized : null,
     mate: score[1] === "mate" ? normalized : null,
-    uci: pv,
-    san: toSan(fen, pv),
+    uci: pv.slice(0, san.length),
+    san,
     nps: Number(line.match(/\bnps (\d+)/)?.[1] || 0),
   };
 }
@@ -70,11 +83,20 @@ export class ChessEngine {
   constructor(handler: EngineUpdate) {
     this.handler = handler;
   }
-  analyze(fen: string, depth: AnalysisLimit) {
+  analyze(fen: string, depth: AnalysisLimit, historyLine?: GameLine) {
     this.stopWorker();
     const request = ++this.request;
     try {
       validateAnalysisPosition(fen);
+      const board = historyLine ? replayLine(historyLine) : new Chess(fen);
+      if (board.fen() !== new Chess(fen).fen())
+        throw Error("Engine history does not match the displayed position");
+      const state = historyLine ? statusOfLine(historyLine) : ruleStatus(board);
+      if (state.terminal) {
+        this.handler([], state.message);
+        return;
+      }
+      searchCommand(depth);
     } catch (error) {
       this.handler(
         [],
@@ -108,7 +130,11 @@ export class ChessEngine {
         }
         if (line.trim() === "readyok") {
           this.handler([], "Analyzing");
-          worker.postMessage(`position fen ${fen}`);
+          worker.postMessage(
+            historyLine?.moves.length
+              ? `position fen ${new Chess(historyLine.rootFen).fen()} moves ${historyLine.moves.join(" ")}`
+              : `position fen ${new Chess(historyLine?.rootFen || fen).fen()}`,
+          );
           worker.postMessage(searchCommand(depth));
         }
         const v = parseInfo(line, fen);

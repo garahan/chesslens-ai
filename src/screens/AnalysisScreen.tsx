@@ -1,3 +1,5 @@
+import { RulesPanel } from "../components/rules/RulesPanel";
+import type { GameLine, RuleStatus, ClaimReason } from "../rules";
 import type { ComponentProps } from "react";
 
 import { ActionStrip } from "../components/analysis/ActionStrip";
@@ -15,6 +17,10 @@ type AnalysisScreenProps = {
   onAnalyze: () => void;
   onFlip: () => void;
   past: string[];
+  line: GameLine;
+  ply: number;
+  ruleStatus: RuleStatus;
+  onClaim: (reason: ClaimReason, intended?: string) => void;
 };
 export function AnalysisScreen({
   board,
@@ -25,6 +31,10 @@ export function AnalysisScreen({
   onAnalyze,
   onFlip,
   past,
+  line,
+  ply,
+  ruleStatus,
+  onClaim,
 }: AnalysisScreenProps) {
   return (
     <div className="analysis-screen">
@@ -37,11 +47,18 @@ export function AnalysisScreen({
         onTurn={onTurn}
         onAnalyze={onAnalyze}
         active={engine.enabled}
+        disabled={ruleStatus.terminal}
       />
       <EnginePanel {...engine} />
       <details className="position-tools">
         <summary>Position tools & history</summary>
         <FenBar {...fenInput} />
+        <RulesPanel
+          line={line}
+          ply={ply}
+          status={ruleStatus}
+          onClaim={onClaim}
+        />
         <details className="history-card">
           <summary>
             Move history <span>{navigation.index} ply</span>

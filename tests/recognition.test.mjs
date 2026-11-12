@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Chess } from "chess.js";
+import { replayLine, statusOfLine, claimDraw } from "../src/rules.ts";
 import { readFileSync } from "node:fs";
 import {
   PIECES,
@@ -246,6 +247,40 @@ test("tracking storage expires, advances only from the expected anchor, and rese
     assert.equal(getTrackedGame(), null);
     assert.equal(stopTracking(), true);
     assert.equal(getTrackedGame(), null);
+  } finally {
+    if (previous === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = previous;
+  }
+});
+
+test("tracked continuation carries the complete legal line and draw history", () => {
+  const cycle = ["g1f3", "g8f6", "f3g1", "f6g8"];
+  const line = {
+    rootFen: new Chess().fen(),
+    moves: [...cycle, ...cycle.slice(0, 3)],
+  };
+  const anchor = replayLine(line),
+    next = replayLine(line);
+  next.move("Ng8");
+  const match = matchContinuation(anchor.fen(), evidence(next), 1, line);
+  assert.deepEqual(match.line.moves, [...cycle, ...cycle]);
+  assert.equal(statusOfLine(match.line).repetitions, 3);
+  const claimed = claimDraw(match.line, 8, "threefold repetition");
+  const unchanged = matchContinuation(next.fen(), evidence(next), 1, claimed);
+  assert.deepEqual(unchanged.line, claimed);
+  const after = replayLine(claimed);
+  after.move("e4");
+  assert.equal(
+    matchContinuation(next.fen(), evidence(after), 1, claimed),
+    null,
+  );
+  const previous = globalThis.localStorage;
+  globalThis.localStorage = memory();
+  try {
+    assert.equal(trackPosition(anchor.fen(), line), true);
+    assert.equal(advanceTracking(anchor.fen(), match.fen, match.line), true);
+    assert.deepEqual(getTrackedGame().line, match.line);
+    assert.equal(statusOfLine(getTrackedGame().line).repetitions, 3);
   } finally {
     if (previous === undefined) delete globalThis.localStorage;
     else globalThis.localStorage = previous;
