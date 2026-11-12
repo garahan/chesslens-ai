@@ -118,8 +118,11 @@ export function ruleStatus(board: Chess): RuleStatus {
   );
 }
 export function statusOfLine(line: GameLine, ply = line.moves.length) {
-  const board = replayLine(line, ply),
-    status = ruleStatus(board);
+  return statusOfBoard(replayLine(line, ply), line, ply);
+}
+/** Reuse an already replayed, validated board; callers must supply its matching line/ply. */
+export function statusOfBoard(board: Chess, line: GameLine, ply: number) {
+  const status = ruleStatus(board);
   if (line.claim?.ply === ply) {
     if (status.terminal)
       throw Error("Draw claim was recorded after the game had already ended");

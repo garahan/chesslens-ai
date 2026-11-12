@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { Chess, type Move } from "chess.js";
 import { ChessPiece } from "./ChessPiece";
-export function ChessBoardCard({
+export const ChessBoardCard = memo(function ChessBoardCard({
   board,
   flipped,
   selected,
@@ -17,6 +18,7 @@ export function ChessBoardCard({
   lastMove?: string;
   onSquare: (square: string) => void;
 }) {
+  const destinations = new Set(moves.map((move) => move.to));
   const files = "abcdefgh",
     squares = Array.from(
       { length: 64 },
@@ -35,7 +37,7 @@ export function ChessBoardCard({
         <div className="board" role="grid" aria-label="Interactive chessboard">
           {squares.map((sq) => {
             const piece = board.get(sq as never),
-              legal = moves.some((m) => m.to === sq),
+              legal = destinations.has(sq as never),
               check =
                 piece?.type === "k" &&
                 piece.color === board.turn() &&
@@ -97,4 +99,4 @@ export function ChessBoardCard({
       </div>
     </section>
   );
-}
+});

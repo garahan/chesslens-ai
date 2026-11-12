@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { useAppearance, type PieceStyle } from "../../appearance";
 /** A single vector piece set shared by the board, scanner, and piece pickers. */
-export function ChessPiece({
+export const ChessPiece = memo(function ChessPiece({
   piece,
   appearance,
 }: {
@@ -141,4 +142,4 @@ export function ChessPiece({
       </g>
     </svg>
   );
-}
+});

@@ -1,6 +1,6 @@
 import type { RecognitionExtras } from "./recognition/types";
 import { validatePlacement } from "./position";
-import { createRecognizer, resolveOrientation } from "@scoriiu/fenshot";
+import type { createRecognizer } from "@scoriiu/fenshot";
 import { recognizeDuolingoScreenshot, type BoardCrop } from "./duolingo";
 export type ScanOutcome = RecognitionExtras & {
   boardCrop?: BoardCrop;
@@ -13,7 +13,8 @@ export type ScanOutcome = RecognitionExtras & {
   source?: string;
 };
 let recognizer: ReturnType<typeof createRecognizer> | null = null;
-function genericRecognizer() {
+async function genericRecognizer() {
+  const { createRecognizer } = await import("@scoriiu/fenshot");
   return (recognizer ??= createRecognizer({
     modelUrl: "/models/chess-tiles-v2.onnx",
     wasmPaths: "/ort/",
@@ -59,8 +60,10 @@ export async function scanImage(
     throw new Error(
       "Duolingo board not found. Adjust the board crop and try again.",
     );
-  const result = await genericRecognizer().recognize(file);
+  const reader = await genericRecognizer();
+  const result = await reader.recognize(file);
   if (!result) return null;
+  const { resolveOrientation } = await import("@scoriiu/fenshot");
   const resolved = resolveOrientation(result.placement);
   const squares = parsePlacement(resolved.placement);
   const issues = validatePlacement(squares, "w");

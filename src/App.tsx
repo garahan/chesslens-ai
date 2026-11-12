@@ -1,6 +1,7 @@
 import {
   replayLine,
   statusOfLine,
+  statusOfBoard,
   ruleStatus,
   savedGame,
   saveGame,
@@ -9,6 +10,7 @@ import {
   type GameLine,
   type ClaimReason,
 } from "./rules";
+import { ScannerBoundary } from "./components/scanner/ScannerBoundary";
 import { RecognitionSettings } from "./components/settings/RecognitionSettings";
 import { playSound } from "./sound";
 import { SoundSettings } from "./components/inputs/SoundControls";
@@ -17,7 +19,7 @@ import { UpdateButton } from "./components/settings/UpdateButton";
 import { AppearanceSettings } from "./components/settings/AppearanceSettings";
 import { OfflineStatus } from "./components/layout/OfflineStatus";
 import { ChessPiece } from "./components/board/ChessPiece";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Chess, type Move } from "chess.js";
 import { X } from "lucide-react";
 import { ChessEngine, type Variation, type AnalysisLimit } from "./engine";
@@ -26,7 +28,11 @@ import { AppShell } from "./components/layout/AppShell";
 import { AppHeader } from "./components/layout/AppHeader";
 import { FloatingActions } from "./components/inputs/FloatingActions";
 import { HomeScreen } from "./screens/HomeScreen";
-import { ScanReviewScreen } from "./screens/ScanReviewScreen";
+const ScanReviewScreen = lazy(() =>
+  import("./screens/ScanReviewScreen").then((module) => ({
+    default: module.ScanReviewScreen,
+  })),
+);
 import { AnalysisScreen } from "./screens/AnalysisScreen";
 import "./styles/tokens.css";
 import "./styles/app.css";
@@ -101,8 +107,8 @@ export default function App() {
   const board = useMemo(() => replayLine(line, index), [line, index]);
   const fen = board.fen();
   const positionStatus = useMemo(
-    () => statusOfLine(line, index),
-    [line, index],
+    () => statusOfBoard(board, line, index),
+    [board, line, index],
   );
   useEffect(() => {
     if (hasPosition) {
@@ -341,12 +347,23 @@ export default function App() {
             onRecent={() => setMode("analysis")}
           />
         ) : mode === "review" && image ? (
-          <ScanReviewScreen
-            key={scanSession}
-            image={image}
-            file={scanFile}
-            onAnalyze={loadFen}
-          />
+          <ScannerBoundary key={scanSession}>
+            <Suspense
+              fallback={
+                <div className="scan-progress" role="status">
+                  <span className="scanner-spinner" />
+                  <strong>Opening your screenshot…</strong>
+                </div>
+              }
+            >
+              <ScanReviewScreen
+                key={scanSession}
+                image={image}
+                file={scanFile}
+                onAnalyze={loadFen}
+              />
+            </Suspense>
+          </ScannerBoundary>
         ) : (
           <AnalysisScreen
             board={{
@@ -516,7 +533,7 @@ export default function App() {
               </p>
             </div>
             <p className="build-info">
-              ChessLens AI 0.11.0 · Stockfish 19
+              ChessLens AI 0.12.0 · Stockfish 19
               <br />
               Your screenshots stay on your device.
             </p>
