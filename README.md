@@ -17,7 +17,7 @@ The source contains numerical Duolingo piece silhouettes, not full screenshots o
 ### Mobile UI
 
 The app guides you through **Import → Review → Analyze**, with a purple app bar,
-cream board, compact engine variations, and camera/gallery shortcuts.
+lavender board, compact engine variations, and camera/gallery shortcuts.
 Manual corrections and castling controls live behind secondary controls.
 See [UI structure and verification notes](docs/ui-refactor.md) for details and
 optional browser checks.

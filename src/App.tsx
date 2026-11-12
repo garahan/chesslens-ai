@@ -1,3 +1,4 @@
+import { ChessPiece } from "./components/board/ChessPiece";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Chess, type Move } from "chess.js";
 import { X } from "lucide-react";
@@ -12,20 +13,6 @@ import { AnalysisScreen } from "./screens/AnalysisScreen";
 import "./styles/tokens.css";
 import "./styles/app.css";
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-const FIG: Record<string, string> = {
-  wk: "♔",
-  wq: "♕",
-  wr: "♖",
-  wb: "♗",
-  wn: "♘",
-  wp: "♙",
-  bk: "♚",
-  bq: "♛",
-  br: "♜",
-  bb: "♝",
-  bn: "♞",
-  bp: "♟",
-};
 type AppMode = "home" | "review" | "analysis";
 export default function App() {
   const [scanFile, setScanFile] = useState<File | null>(null);
@@ -402,7 +389,9 @@ export default function App() {
                     if (m) move(m);
                   }}
                 >
-                  {FIG[board.turn() + p]}
+                  <ChessPiece
+                    piece={board.turn() === "w" ? p.toUpperCase() : p}
+                  />
                 </button>
               ))}
             </div>

@@ -1,3 +1,4 @@
+import { ChessPiece } from "../components/board/ChessPiece";
 import {
   Camera,
   ImagePlus,
@@ -31,7 +32,9 @@ export function HomeScreen({
       <div className="upload-card">
         <div className="scan-illustration">
           <ScanLine size={68} strokeWidth={1.2} />
-          <span>♞</span>
+          <span>
+            <ChessPiece piece="n" />
+          </span>
         </div>
         <h3>Import a chess screenshot</h3>
         <p>
@@ -68,7 +71,9 @@ export function HomeScreen({
       </div>
       {recent && (
         <button className="recent-card" onClick={onRecent}>
-          <span>♞</span>
+          <span>
+            <ChessPiece piece="n" />
+          </span>
           <div>
             <strong>Your last position</strong>
             <small>Continue exploring</small>

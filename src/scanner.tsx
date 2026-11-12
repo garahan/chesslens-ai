@@ -1,23 +1,10 @@
+import { ChessPiece } from "./components/board/ChessPiece";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
 import { scanImage, parsePlacement, type ScanOutcome } from "./vision";
 import { validatePlacement } from "./position";
 import { SourceBoard } from "./components/scanner/SourceBoard";
 import { ActionStrip } from "./components/analysis/ActionStrip";
-const glyphs: Record<string, string> = {
-  K: "♔",
-  Q: "♕",
-  R: "♖",
-  B: "♗",
-  N: "♘",
-  P: "♙",
-  k: "♚",
-  q: "♛",
-  r: "♜",
-  b: "♝",
-  n: "♞",
-  p: "♟",
-};
 const palette = [
   "K",
   "Q",
@@ -244,15 +231,7 @@ export function ScanEditor({
                       setUncertain((old) => old.filter((s) => s !== name));
                     }}
                   >
-                    <span
-                      className={
-                        pieces[idx] === pieces[idx].toUpperCase()
-                          ? "white-piece"
-                          : "black-piece"
-                      }
-                    >
-                      {glyphs[pieces[idx]] || ""}
-                    </span>
+                    <ChessPiece piece={pieces[idx]} />
                     {col === 0 && (
                       <small className="rank">{8 - Math.floor(idx / 8)}</small>
                     )}
@@ -335,12 +314,14 @@ export function ScanEditor({
                     </div>
                     <div>
                       <span className="recognized-square">
-                        {glyphs[
-                          pieces[
-                            (8 - Number(focusedSquare[1])) * 8 +
-                              "abcdefgh".indexOf(focusedSquare[0])
-                          ]
-                        ] || "—"}
+                        <ChessPiece
+                          piece={
+                            pieces[
+                              (8 - Number(focusedSquare[1])) * 8 +
+                                "abcdefgh".indexOf(focusedSquare[0])
+                            ]
+                          }
+                        />
                       </span>
                       <small>Recognized</small>
                     </div>
@@ -393,7 +374,7 @@ export function ScanEditor({
                             setQuickEdit(false);
                           }}
                         >
-                          {piece === "." ? "×" : glyphs[piece]}
+                          {piece === "." ? "×" : <ChessPiece piece={piece} />}
                         </button>
                       ))}
                     </div>
@@ -434,7 +415,7 @@ export function ScanEditor({
                     className={selected === p ? "chosen" : ""}
                     onClick={() => setSelected(p)}
                   >
-                    {p === "." ? "×" : glyphs[p]}
+                    {p === "." ? "×" : <ChessPiece piece={p} />}
                   </button>
                 ))}
               </div>

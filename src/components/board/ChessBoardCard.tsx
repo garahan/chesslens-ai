@@ -1,18 +1,5 @@
 import { Chess, type Move } from "chess.js";
-const FIG: Record<string, string> = {
-  wk: "♔",
-  wq: "♕",
-  wr: "♖",
-  wb: "♗",
-  wn: "♘",
-  wp: "♙",
-  bk: "♚",
-  bq: "♛",
-  br: "♜",
-  bb: "♝",
-  bn: "♞",
-  bp: "♟",
-};
+import { ChessPiece } from "./ChessPiece";
 export function ChessBoardCard({
   board,
   flipped,
@@ -59,11 +46,15 @@ export function ChessBoardCard({
                 onClick={() => onSquare(sq)}
                 className={`square ${(files.indexOf(sq[0]) + Number(sq[1])) % 2 === 0 ? "dark" : "light"} ${selected === sq ? "selected" : ""} ${check ? "in-check" : ""}`}
               >
-                <span
-                  className={`piece ${piece?.color === "w" ? "white-piece" : "black-piece"}`}
-                >
-                  {piece ? FIG[piece.color + piece.type] : ""}
-                </span>
+                {piece && (
+                  <ChessPiece
+                    piece={
+                      piece.color === "w"
+                        ? piece.type.toUpperCase()
+                        : piece.type
+                    }
+                  />
+                )}
                 {legal && <span className={piece ? "capture" : "move-dot"} />}
                 {sq[0] === (flipped ? "h" : "a") && (
                   <span className="rank">{sq[1]}</span>
@@ -86,7 +77,7 @@ export function ChessBoardCard({
                 refY="1.5"
                 orient="auto"
               >
-                <path d="M0,0 L0,3 L2.5,1.5 z" fill="rgba(112,112,85,.65)" />
+                <path d="M0,0 L0,3 L2.5,1.5 z" fill="var(--color-arrow)" />
               </marker>
             </defs>
             <line
@@ -94,7 +85,7 @@ export function ChessBoardCard({
               y1={from.y}
               x2={to.x}
               y2={to.y}
-              stroke="rgba(112,112,85,.65)"
+              stroke="var(--color-arrow)"
               strokeWidth="2"
               markerEnd="url(#arrowhead)"
             />

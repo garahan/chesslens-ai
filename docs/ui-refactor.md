@@ -9,7 +9,7 @@ The app now opens at import, then guides the user through board review and analy
 - Uncertain-square chips highlight and scroll to the board. Approving preserves the piece; editing uses the secondary piece palette. Low-confidence scans remain in review.
 - Analysis retains legal moves, promotion selection, first/previous/next/last navigation, board flip, editable FEN, and three real Stockfish variations. Engine work stops outside analysis.
 - Settings hold depth, favorites, and starting position. Native dialogs contain keyboard focus, support Escape, and restore focus on close.
-- Header, theme metadata, cards, and board colors use the supplied purple / cream palette. Buttons have 44px minimum targets (board cells scale with the board), safe-area padding, and reduced-motion handling. Favorite moves into settings on small screens.
+- Header, theme metadata, cards, and board colors use a coordinated purple / lavender palette. Buttons have 44px minimum targets (board cells scale with the board), safe-area padding, and reduced-motion handling. Favorite moves into settings on small screens.
 - The engine label is Stockfish 19 to match the installed engine, rather than the example Stockfish 16 label.
 
 ## Validation
@@ -33,3 +33,7 @@ Review now has an Original screenshot / Recognized board comparison. Tapping a s
 The original supplied screenshot reads 64/64 squares correctly, including both kings and the highlighted white knight. Its placement is `4r1k1/2p2ppp/5n2/p2p4/3P1P2/2P3P1/P3N2P/RN2K2R`. Turn and castling rights still require the user to confirm them. Resized, JPEG-recompressed, dimmer, and brighter variants also match. These are regression tests of one source image, not an independent accuracy benchmark.
 
 `tests/fixtures/duolingo-regression.json` stores only numerical tile signatures. The original screenshot and player artwork are not committed. For the complete local regression, run `DUOLINGO_TEST_IMAGE=/path/to/original.jpg python tests/duolingo_browser.py` while the dev server runs. The test checks actual recognition, original-board comparison, direct corrections, Analyze gating, and real Stockfish output.
+
+## Unified piece and board styling
+
+All rendered pieces now use one original SVG set with matching silhouettes, bases, outlines, and ivory/plum fills. The same component is used in analysis, review, correction pickers, promotion, and home artwork. Lavender squares, coordinated coordinates, selection states, and purple move arrows complete the palette. Vector rendering avoids platform-dependent chess font shapes. Recognition and source-image pixels are unchanged. Build, browser flow, and exact-screenshot regression checks pass.
