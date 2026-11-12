@@ -1,3 +1,5 @@
+import { inferDuolingoPosition } from "./duolingo-inference.ts";
+import { locateDuolingoGrid, hasDuolingoPalette } from "./duolingo-grid.ts";
 import { validatePlacement } from "./position.ts";
 import { duolingoSignatures } from "./duolingo-signatures.ts";
 
@@ -30,8 +32,6 @@ const prototypes: Prototype[] = duolingoSignatures
       color: rgb.split(",").map(Number),
     };
   });
-const boardLight = [38, 52, 58],
-  boardDark = [21, 30, 35];
 const clamp = (x: number, min: number, max: number) =>
   Math.max(min, Math.min(max, x));
 
@@ -52,7 +52,7 @@ async function decode(file: File): Promise<HTMLImageElement> {
 }
 
 /**
- * Duolingo puts a full-width square chessboard between cartoon players.
+ * Duolingo places a square chessboard between cartoon players; margins may be present.
  * Score the complete checkerboard and its precise top transition.
  * Repeated light-row edges alone cannot identify the true board boundary.
  * Return null for non-Duolingo screenshots to leave the ONNX path intact.
@@ -62,58 +62,7 @@ export function locateBoard(
   width: number,
   height: number,
 ): number | null {
-  const cell = width / 8;
-  const sample = (x: number, y: number) => {
-    const i =
-      4 *
-      (Math.floor(clamp(y, 0, height - 1)) * width +
-        Math.floor(clamp(x, 0, width - 1)));
-    return [pixels[i], pixels[i + 1], pixels[i + 2]];
-  };
-  const distance = (p: number[], bg: number[]) =>
-    Math.hypot(p[0] - bg[0], p[1] - bg[1], p[2] - bg[2]);
-  let bestY: number | null = null,
-    bestError = Infinity;
-  for (let y = 0; y <= height - width; y++) {
-    // The real top edge must begin a light square. Later light rows can look
-    // identical locally, so score the complete grid, including the last ranks.
-    const above = sample(2, y - 2),
-      below = sample(2, y + 2);
-    if (
-      distance(below, boardLight) > 25 ||
-      (y > 0 && distance(above, boardLight) < 15)
-    )
-      continue;
-    let total = 0,
-      valid = true;
-    for (let row = 0; row < 8; row++) {
-      let rowError = 0;
-      for (let col = 0; col < 8; col++) {
-        const bg = (row + col) % 2 === 0 ? boardLight : boardDark;
-        // Sprite edges can touch one border. Check both sides of every square,
-        // at three heights, instead of discarding entire unmatched bottom ranks.
-        for (const fraction of [0.2, 0.5, 0.8]) {
-          const sy = y + (row + fraction) * cell;
-          const left = sample((col + 0.025) * cell, sy),
-            right = sample((col + 0.975) * cell, sy);
-          rowError += Math.min(100, distance(left, bg), distance(right, bg));
-        }
-      }
-      rowError /= 24;
-      if (rowError > 18) {
-        valid = false;
-        break;
-      }
-      total += rowError;
-    }
-    const edge = distance(sample(2, y), sample(2, y - 1));
-    const score = total / 8 - Math.min(100, edge) * 0.04;
-    if (valid && score < bestError) {
-      bestError = score;
-      bestY = y;
-    }
-  }
-  return bestError < 14 ? bestY : null;
+  return locateDuolingoGrid(pixels, width, height)?.y ?? null;
 }
 export function feature(image: ImageData, row: number, col: number) {
   const pixels = image.data;
@@ -220,12 +169,16 @@ export function combineMatches(hits: ReturnType<typeof classify>[]) {
     margin,
     agreement,
     confidence: clamp(1 - best.score * 2.2, 0, 1),
+    scores: Object.fromEntries(
+      scores.map((option) => [option.piece, option.score]),
+    ),
     uncertain:
       best.score > 0.14 || agreement < 0.8 || (margin < 0.012 && !stable),
   };
 }
 export async function recognizeDuolingoScreenshot(
   file: File,
+  manualCrop?: BoardCrop,
 ): Promise<DuolingoResult | null> {
   const img = await decode(file);
   const canvas = document.createElement("canvas"),
@@ -233,30 +186,53 @@ export async function recognizeDuolingoScreenshot(
   if (!ctx) throw Error("Canvas 2D not supported by this browser");
   const width = 512,
     height = Math.round((img.naturalHeight * width) / img.naturalWidth);
-  if (height < width || height > 5000) return null;
+  if (height > 5000 && !manualCrop) return null;
+  if (
+    manualCrop &&
+    (![manualCrop.x, manualCrop.y, manualCrop.size].every(Number.isFinite) ||
+      manualCrop.size < 24 ||
+      manualCrop.x < 0 ||
+      manualCrop.y < 0 ||
+      manualCrop.x + manualCrop.size > img.naturalWidth + 0.1 ||
+      manualCrop.y + manualCrop.size > img.naturalHeight + 0.1)
+  )
+    throw new Error("Crop must contain a square board within the image.");
   canvas.width = width;
   canvas.height = height;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(img, 0, 0, width, height);
-  const top = locateBoard(
-    ctx.getImageData(0, 0, width, height).data,
-    width,
-    height,
-  );
-  if (top === null) return null;
+  const pixels = ctx.getImageData(0, 0, width, height).data;
+  const scale = img.naturalWidth / width;
+  const bounds = manualCrop
+    ? {
+        x: manualCrop.x / scale,
+        y: manualCrop.y / scale,
+        size: manualCrop.size / scale,
+        error: 0,
+      }
+    : locateDuolingoGrid(pixels, width, height);
+  if (!bounds) {
+    if (hasDuolingoPalette(pixels))
+      throw new Error(
+        "Duolingo board edges need adjustment. Use Adjust board crop to align all eight rows and files.",
+      );
+    return null;
+  }
   const tile = document.createElement("canvas");
   tile.width = tile.height = 24;
   const tileContext = tile.getContext("2d", { willReadFrequently: true });
   if (!tileContext) throw Error("Canvas tile processing unavailable");
   tileContext.imageSmoothingEnabled = true;
   tileContext.imageSmoothingQuality = "high";
-  const scale = img.naturalWidth / width,
-    sourceTop = top * scale,
-    sourceCell = img.naturalWidth / 8;
+  const sourceTop = bounds.y * scale,
+    sourceLeft = bounds.x * scale,
+    sourceSize = bounds.size * scale,
+    sourceCell = sourceSize / 8;
   const squares: string[] = [],
     confidences: number[] = [],
     uncertainSquares: string[] = [];
+  const tileScores: ReturnType<typeof combineMatches>[] = [];
   // Sample each source square directly rather than rescaling the entire board.
   // Tiny offsets test whether JPEG edges/resampling change the predicted label.
   const offsets = [
@@ -272,7 +248,7 @@ export async function recognizeDuolingoScreenshot(
         tileContext.clearRect(0, 0, 24, 24);
         tileContext.drawImage(
           img,
-          col * sourceCell + (dx * sourceCell) / 24,
+          sourceLeft + col * sourceCell + (dx * sourceCell) / 24,
           sourceTop + row * sourceCell + (dy * sourceCell) / 24,
           sourceCell,
           sourceCell,
@@ -285,10 +261,31 @@ export async function recognizeDuolingoScreenshot(
         return classify(sample.mask, sample.color);
       });
       const hit = combineMatches(hits);
+      tileScores.push(hit);
       squares.push(hit.piece);
       confidences.push(hit.confidence);
       if (hit.uncertain) uncertainSquares.push("abcdefgh"[col] + (8 - row));
     }
+  const occupied = tileScores.filter((hit) => hit.piece !== ".");
+  if (
+    occupied.length &&
+    occupied.filter((hit) => hit.score > 0.16).length > occupied.length * 0.3
+  )
+    throw new Error(
+      "Too many piece shapes are unclear. Crop tightly to the board or use the original full-resolution Duolingo screenshot.",
+    );
+  const inferred = inferDuolingoPosition(tileScores);
+  if (!inferred)
+    throw new Error(
+      "Duolingo piece matches conflict with chess rules. Adjust the board crop to include only the 8×8 board.",
+    );
+  if (inferred) {
+    squares.splice(0, 64, ...inferred.squares);
+    for (const index of inferred.adjusted) {
+      const square = "abcdefgh"[index % 8] + (8 - Math.floor(index / 8));
+      if (!uncertainSquares.includes(square)) uncertainSquares.push(square);
+    }
+  }
   const topWhites = squares
     .slice(0, 16)
     .filter((p) => p !== "." && p === p.toUpperCase()).length;
@@ -296,7 +293,13 @@ export async function recognizeDuolingoScreenshot(
     .slice(48, 64)
     .filter((p) => p !== "." && p === p.toUpperCase()).length;
   const orientation = topWhites > bottomWhites ? "black" : "white";
-  const meanConfidence = confidences.reduce((a, b) => a + b, 0) / 64;
+  // Empty squares must not inflate the reported match quality of actual pieces.
+  const pieceConfidences = tileScores.flatMap((hit, index) =>
+    hit.piece !== "." ? [confidences[index]] : [],
+  );
+  const meanConfidence = pieceConfidences.length
+    ? pieceConfidences.reduce((a, b) => a + b, 0) / pieceConfidences.length
+    : 0;
   // FEN always has rank 8 first; black-bottom screenshots show rank 1 first.
   const normalized = orientation === "black" ? [...squares].reverse() : squares;
   const fixedUncertain =
@@ -307,15 +310,16 @@ export async function recognizeDuolingoScreenshot(
       : uncertainSquares;
   return {
     boardCrop: {
-      x: 0,
-      y: top * scale,
-      size: img.naturalWidth,
+      x: sourceLeft,
+      y: sourceTop,
+      size: sourceSize,
       imageWidth: img.naturalWidth,
       imageHeight: img.naturalHeight,
     },
     squares: normalized,
     orientation,
     reliable:
+      !!inferred &&
       uncertainSquares.length === 0 &&
       validatePlacement(normalized, "w").errors.length === 0,
     meanConfidence,

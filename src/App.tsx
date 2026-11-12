@@ -1,3 +1,4 @@
+import { validateAnalysisPosition } from "./position";
 import { UpdateButton } from "./components/settings/UpdateButton";
 import { AppearanceSettings } from "./components/settings/AppearanceSettings";
 import { OfflineStatus } from "./components/layout/OfflineStatus";
@@ -19,6 +20,7 @@ import "./styles/themes.css";
 function savedPosition() {
   try {
     const value = localStorage.getItem("chesslens-last-position");
+    if (value) validateAnalysisPosition(value);
     return value ? new Chess(value).fen() : null;
   } catch {
     return null;
@@ -151,6 +153,7 @@ export default function App() {
   };
   const loadFen = (value: string) => {
     try {
+      validateAnalysisPosition(value.trim());
       const b = new Chess(value.trim());
       setHistory([b.fen()]);
       setIndex(0);
@@ -430,7 +433,7 @@ export default function App() {
               </p>
             </div>
             <p>
-              ChessLens AI 0.6 · Stockfish 19
+              ChessLens AI 0.6.1 · Stockfish 19
               <br />
               Screenshot recognition runs on your device.
             </p>

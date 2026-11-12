@@ -22,6 +22,9 @@ export function AppHeader({
             ChessLens <span>AI</span>
           </h1>
         </div>
+        <span className="build-badge" aria-label="App version 0.6.1">
+          0.6.1
+        </span>
         <button
           className="icon-button"
           aria-label="Open settings"

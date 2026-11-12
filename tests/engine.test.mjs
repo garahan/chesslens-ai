@@ -59,3 +59,23 @@ test("engine restarts with the chosen limit and ignores results after pause", ()
     globalThis.Worker = original;
   }
 });
+
+test("the engine refuses an invalid recognized board before starting a worker", () => {
+  const original = globalThis.Worker;
+  let created = 0;
+  globalThis.Worker = class {
+    constructor() {
+      created++;
+    }
+  };
+  try {
+    let status = "";
+    const engine = new ChessEngine((_lines, message) => (status = message));
+    engine.analyze("8/8/8/8/8/8/8/8 w - - 0 1", 15);
+    assert.equal(created, 0);
+    assert.match(status, /Position needs correction/);
+    engine.dispose();
+  } finally {
+    globalThis.Worker = original;
+  }
+});

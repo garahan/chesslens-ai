@@ -1,3 +1,4 @@
+import { validateAnalysisPosition } from "./position.ts";
 import { Chess } from "chess.js";
 export type AnalysisLimit = number | "infinite";
 export function searchCommand(limit: AnalysisLimit) {
@@ -72,6 +73,15 @@ export class ChessEngine {
   analyze(fen: string, depth: AnalysisLimit) {
     this.stopWorker();
     const request = ++this.request;
+    try {
+      validateAnalysisPosition(fen);
+    } catch (error) {
+      this.handler(
+        [],
+        `Position needs correction: ${error instanceof Error ? error.message : "invalid position"}`,
+      );
+      return;
+    }
     this.handler([], "Loading Stockfish…");
     let worker: Worker;
     try {

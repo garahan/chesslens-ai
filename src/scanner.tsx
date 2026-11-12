@@ -1,9 +1,11 @@
+import { BoardCropper } from "./components/scanner/BoardCropper";
+import type { BoardCrop } from "./duolingo";
 import { Modal } from "./components/layout/Modal";
 import { ChessPiece } from "./components/board/ChessPiece";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
 import { scanImage, parsePlacement, type ScanOutcome } from "./vision";
-import { validatePlacement } from "./position";
+import { validatePlacement, validateAnalysisPosition } from "./position";
 import { SourceBoard } from "./components/scanner/SourceBoard";
 import { ActionStrip } from "./components/analysis/ActionStrip";
 const palette = [
@@ -50,6 +52,11 @@ export function ScanEditor({
   file: File | null;
   onAnalyze: (fen: string) => void;
 }) {
+  const [cropOpen, setCropOpen] = useState(false);
+  const [crop, setCrop] = useState<BoardCrop | undefined>();
+  const [scannerMode, setScannerMode] = useState<
+    "auto" | "duolingo" | "general"
+  >("auto");
   const requestRef = useRef(0);
   const boardRef = useRef<HTMLDivElement>(null);
   const [showOriginal, setShowOriginal] = useState(false);
@@ -79,6 +86,7 @@ export function ScanEditor({
       return;
     }
     setScanning(true);
+    setManuallyEdited(false);
     setTurnConfirmed(false);
     setFocusedSquare(null);
     setShowOriginal(false);
@@ -86,7 +94,7 @@ export function ScanEditor({
     setError("");
     setResult(null);
     try {
-      const detected = await scanImage(file);
+      const detected = await scanImage(file, { mode: scannerMode, crop });
       if (request !== requestRef.current) return;
       if (!detected) {
         setError("No chessboard detected. Try a clearer screenshot.");
@@ -107,7 +115,7 @@ export function ScanEditor({
     } finally {
       if (request === requestRef.current) setScanning(false);
     }
-  }, [file]);
+  }, [file, scannerMode, crop]);
   useEffect(() => {
     setResult(null);
     setError("");
@@ -123,6 +131,7 @@ export function ScanEditor({
     try {
       if (!turnConfirmed) throw Error("Select whose turn it is");
       if (issues.errors.length) throw Error(issues.errors.join("; "));
+      validateAnalysisPosition(fen);
       const board = new Chess(fen);
       if (!board.isGameOver() && !board.moves().length)
         throw Error("No legal moves");
@@ -141,6 +150,18 @@ export function ScanEditor({
     !issues.errors.length;
   return (
     <div className="scaneditor">
+      {cropOpen && (
+        <BoardCropper
+          image={image}
+          initial={crop || result?.boardCrop}
+          onCancel={() => setCropOpen(false)}
+          onApply={(bounds) => {
+            setCrop(bounds);
+            setScannerMode("duolingo");
+            setCropOpen(false);
+          }}
+        />
+      )}
       {scanning ? (
         <div className="scan-progress" role="status">
           <span className="scanner-spinner" />
@@ -149,7 +170,18 @@ export function ScanEditor({
         </div>
       ) : (
         <>
-          {showOriginal && result?.boardCrop ? (
+          {!result && !manuallyEdited ? (
+            <div className="scan-recovery">
+              <img
+                src={image}
+                alt="Original screenshot; no valid board detected yet"
+              />
+              <button className="primary" onClick={() => setCropOpen(true)}>
+                Adjust board crop
+              </button>
+              <p>The original image is shown until a valid board is found.</p>
+            </div>
+          ) : showOriginal && result?.boardCrop ? (
             <div className="source-board-card">
               <SourceBoard
                 image={image}
@@ -249,7 +281,25 @@ export function ScanEditor({
               <button className="text-button" onClick={detect} disabled={!file}>
                 Rescan
               </button>
+              <button className="text-button" onClick={() => setCropOpen(true)}>
+                Adjust board crop
+              </button>
             </div>
+            <label className="setting-row">
+              Scanner
+              <select
+                aria-label="Scanner type"
+                value={scannerMode}
+                onChange={(event) => {
+                  setCrop(undefined);
+                  setScannerMode(event.target.value as typeof scannerMode);
+                }}
+              >
+                <option value="auto">Auto</option>
+                <option value="duolingo">Duolingo</option>
+                <option value="general">General</option>
+              </select>
+            </label>
             {result && (
               <>
                 <div className="confidence-row">
@@ -471,7 +521,7 @@ export function ScanEditor({
               ))}
             </div>
           </details>
-          {issues.errors.length > 0 && (
+          {(result || manuallyEdited) && issues.errors.length > 0 && (
             <div className="notice" role="alert">
               Position needs correction: {issues.errors.join("; ")}
             </div>

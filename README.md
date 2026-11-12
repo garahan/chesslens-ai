@@ -1,4 +1,4 @@
-# ChessLens AI v0.6 — Duolingo Chess scanner
+# ChessLens AI v0.6.1 — Duolingo Chess scanner
 
 React / Vite mobile chess position analyzer. The Duolingo-specific screenshot recognition path identifies chessboards with Duolingo's teal grid, matches the distinctive piece silhouettes to lightweight numeric references, handles both board orientations and flags uncertain squares for manual review. It falls back to a general browser-side ONNX recognizer for other chess screenshots, then sends a validated FEN to Stockfish.
 
@@ -29,3 +29,7 @@ Open once online and wait for **Ready offline** (about 33 MB initially). In Safa
 ### Customize and analyze
 
 **Tools → Appearance** changes app theme (Light/Dark/System/Studio), board colors, and the piece set independently. Classic cream/brown is the default. Next to the engine switch, choose a depth or **∞** for continuous analysis. Infinite analysis pauses while the app is in the background. Settings includes an update check; use **Reload app** when an update is ready.
+
+### Framed Duolingo screenshots
+
+Version 0.6.1 finds the full grid inside borders rather than assuming it spans the image width. Duolingo-looking images no longer silently fall back to the general model when edges are unclear. Use **Adjust board crop** if necessary. Visually close alternatives are checked against king counts, promotion budgets, bishop colors, and no-capture material constraints. Impossible results are rejected before engine analysis; constraints do not invent pieces that lack visual support.
