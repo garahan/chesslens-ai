@@ -7,7 +7,7 @@
   --color-surface-soft: #eeefe8;
   --color-border: #e0e3d9;
   --color-text: #222e25;
-  --color-text-soft: #657161;
+  --color-text-soft: #626d5e;
   --color-text-inverse: #ffffff;
   --color-accent-ink: #3d614b;
   --accent-soft: #e8eee3;
@@ -20,6 +20,19 @@
   --piece-ivory: #fffdf4;
   --piece-ink: #282622;
   --piece-outline: #494136;
+  --piece-outline-dark: #171511;
+  --piece-detail-white: #968a77;
+  --piece-detail-dark: #c2b49a;
+  --piece-highlight: #e2d6bf;
+  --last-move-color: #e5df58;
+  --board-texture: none;
+  --font-display: inherit;
+  --notice-bg: #fff1eb;
+  --notice-text: #863b2b;
+  --notice-border: #d99e8f;
+  --review-bg: #fff4d6;
+  --review-text: #624814;
+  --review-border: #d8bb70;
   --board-light: #f0d9b5;
   --board-dark: #b58863;
   --board-selection: #d9d786;

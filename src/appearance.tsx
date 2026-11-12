@@ -6,45 +6,33 @@ import {
   useState,
   type ReactNode,
 } from "react";
-export type AppTheme = "system" | "light" | "dark" | "studio";
-export type BoardTheme = "classic" | "green" | "walnut" | "lavender" | "slate";
-export type PieceStyle = "classic" | "modern" | "outline";
-export type Appearance = {
-  app: AppTheme;
-  board: BoardTheme;
-  pieces: PieceStyle;
-};
-const DEFAULT: Appearance = {
-  app: "light",
-  board: "classic",
-  pieces: "classic",
-};
+import {
+  DEFAULT_APPEARANCE,
+  sanitizeAppearance,
+  resolveTheme,
+  type Appearance,
+} from "./appearance-data";
+export type {
+  AppTheme,
+  BoardTheme,
+  PieceStyle,
+  PieceFinish,
+  Appearance,
+} from "./appearance-data";
 function read(): Appearance {
   try {
-    const stored = JSON.parse(
-      localStorage.getItem("chesslens-appearance-v1") || "{}",
+    return sanitizeAppearance(
+      JSON.parse(localStorage.getItem("chesslens-appearance-v1") || "{}"),
     );
-    return {
-      app: ["system", "light", "dark", "studio"].includes(stored.app)
-        ? stored.app
-        : DEFAULT.app,
-      board: ["classic", "green", "walnut", "lavender", "slate"].includes(
-        stored.board,
-      )
-        ? stored.board
-        : DEFAULT.board,
-      pieces: ["classic", "modern", "outline"].includes(stored.pieces)
-        ? stored.pieces
-        : DEFAULT.pieces,
-    };
   } catch {
-    return DEFAULT;
+    return { ...DEFAULT_APPEARANCE };
   }
 }
 const Context = createContext<{
   appearance: Appearance;
   change: <K extends keyof Appearance>(key: K, value: Appearance[K]) => void;
-}>({ appearance: DEFAULT, change: () => {} });
+  apply: (value: Appearance) => void;
+}>({ appearance: DEFAULT_APPEARANCE, change: () => {}, apply: () => {} });
 export function AppearanceProvider({ children }: { children: ReactNode }) {
   const [appearance, setAppearance] = useState(read);
   const [systemDark, setSystemDark] = useState(
@@ -57,26 +45,16 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     return () => query.removeEventListener("change", change);
   }, []);
   useLayoutEffect(() => {
-    const root = document.documentElement;
-    const theme =
-      appearance.app === "system"
-        ? systemDark
-          ? "dark"
-          : "light"
-        : appearance.app;
-    root.dataset.theme = theme;
+    const root = document.documentElement,
+      theme = resolveTheme(appearance.app, systemDark);
+    root.dataset.theme = theme.id;
     root.dataset.board = appearance.board;
     root.dataset.pieces = appearance.pieces;
-    root.style.colorScheme = theme === "light" ? "light" : "dark";
-    const meta = document.querySelector('meta[name="theme-color"]');
-    meta?.setAttribute(
-      "content",
-      theme === "light"
-        ? "#f5f4ef"
-        : theme === "studio"
-          ? "#1b1e24"
-          : "#141c18",
-    );
+    root.dataset.finish = appearance.finish;
+    root.style.colorScheme = theme.mode;
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", theme.background);
     try {
       localStorage.setItem(
         "chesslens-appearance-v1",
@@ -90,6 +68,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
         appearance,
         change: (key, value) =>
           setAppearance((old) => ({ ...old, [key]: value })),
+        apply: (value) => setAppearance(sanitizeAppearance(value)),
       }}
     >
       {children}

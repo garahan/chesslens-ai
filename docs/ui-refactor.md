@@ -18,6 +18,16 @@ Web Audio synthesizes quiet tap, move, capture, castling, check, promotion, game
 
 `tests/sound.test.mjs` covers lazy initialization, saved mute state, immediate stopping, subscriptions, background suppression and unavailable APIs/storage. `tests/design_sound_browser.py` uses real Chromium AudioContext nodes to check move tones, synchronized controls, preview, resume after suspension, and silence while muted/backgrounded. It checks all three app themes at five portrait sizes, including control sizes and engine/dock overlap. The production offline test checks sound generation after a cold offline reopen.
 
+## Version 0.11: coordinated looks and custom finishes
+
+Tools now starts with a gallery of six coordinated looks: Classic Club, Midnight, Matcha, Royal, Ocean and Sunset. Each miniature uses the actual scoped palette, board colors and piece shapes/finish; choosing a preset updates all four preferences together. Exact selection matching changes to “Your own mix” when a single detail differs. The settings close button stays visible while the sheet scrolls.
+
+“Make it your own” exposes six app palettes plus System, eight boards, three piece shapes and four finishes (Ivory, Porcelain, Glacier and Champagne). Studio remains available. App, board, shape and finish are independent; System only follows the phone’s light/dark palette. Walnut includes a subtle grain, Royal uses a serif wordmark, and warnings, evaluations, highlights and notices follow their palettes. No remote fonts, images or other theme downloads are required.
+
+Existing three-field appearance preferences retain their values and gain the default Ivory finish. Invalid fields recover individually. All new choices are restored before React starts, including browser theme color and color scheme. The same versioned local preference works after an offline cold reopen. Scanner pixels and models are unchanged.
+
+`tests/appearance.test.mjs` covers migration, invalid preferences, exact preset identity and System behavior. `tests/creative_themes_browser.py` checks all six looks at five portrait sizes, independent customization, nested preview accuracy, persistence, reset, System changes, migration and pre-React restoration. It checks computed UI text/controls at 4.5:1 and board labels at 4.5:1; each white/black piece must have at least a 3:1 fill or outline contrast against both square colors for all eight boards and four finishes. This is targeted contrast coverage, not a complete accessibility certification. The production offline test uses a Royal/Green/Modern/Glacier custom mix.
+
 ## Offline and home-screen installation
 
 Open the app online and wait for **Ready offline**. The production service worker downloads the shell, all built JavaScript/CSS, the model, ONNX runtime, and Stockfish JavaScript/WASM. No remote API is needed for recognition or analysis. In Safari, use the browser's Share → Add to Home Screen, then open the installed icon online once and wait for Ready offline there (iOS may use separate app storage). The manifest includes PNG icons and an Apple touch icon; safe-area padding supports standalone mode.

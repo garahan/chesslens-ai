@@ -472,8 +472,8 @@ export default function App() {
                 <option value="infinite">∞ Infinite</option>
               </select>
             </label>
-            <SoundSettings />
             <AppearanceSettings />
+            <SoundSettings />
             <RecognitionSettings
               fen={fen}
               line={{
@@ -516,7 +516,7 @@ export default function App() {
               </p>
             </div>
             <p className="build-info">
-              ChessLens AI 0.10.0 · Stockfish 19
+              ChessLens AI 0.11.0 · Stockfish 19
               <br />
               Your screenshots stay on your device.
             </p>

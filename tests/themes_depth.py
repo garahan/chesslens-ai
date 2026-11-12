@@ -25,7 +25,7 @@ with sync_playwright() as p:
  depth.select_option('8');page.get_by_role('switch').click();page.get_by_text('Depth 8 · Analysis complete',exact=True).wait_for(timeout=60000)
  themes=[]
  for app in ['light','dark','studio']:
-  page.get_by_role('button',name='Open settings',exact=True).click();page.get_by_role('button',name=app.capitalize(),exact=True).click()
+  page.get_by_role('button',name='Open settings',exact=True).click();page.get_by_text('Make it your own',exact=True).click();page.get_by_role('button',name=app.capitalize(),exact=True).click()
   for board in ['Classic','Green','Walnut','Lavender','Slate']:
    page.get_by_role('button',name=board+' board',exact=True).click();assert page.locator('html').get_attribute('data-board')==board.lower()
   page.get_by_role('button',name='Classic board',exact=True).click()
@@ -39,6 +39,6 @@ with sync_playwright() as p:
  # Preferences and depth survive a full reload, including system theme changes.
  page.reload();assert page.locator('html').get_attribute('data-theme')=='studio';assert page.locator('html').get_attribute('data-pieces')=='classic'
  page.locator('.recent-card').click();assert page.get_by_role('combobox',name='Analysis depth limit').input_value()=='8'
- page.get_by_role('button',name='Open settings',exact=True).click();page.get_by_role('button',name='System',exact=True).click();page.emulate_media(color_scheme='dark');expect(page.locator('html')).to_have_attribute('data-theme','dark')
+ page.get_by_role('button',name='Open settings',exact=True).click();page.get_by_text('Make it your own',exact=True).click();page.get_by_role('button',name='System',exact=True).click();page.emulate_media(color_scheme='dark');expect(page.locator('html')).to_have_attribute('data-theme','dark')
  page.emulate_media(color_scheme='light');expect(page.locator('html')).to_have_attribute('data-theme','light')
  assert not errors,errors;print(json.dumps({'themes':themes,'boards':5,'piece_sets':3,'depth':['infinite','8'],'persistence':'pass','system_theme':'pass','errors':errors}));browser.close()

@@ -14,9 +14,11 @@ with sync_playwright() as p:
  assert page.get_by_role('button',name='Share position').count()==0
  page.get_by_role('button',name='Open settings',exact=True).click()
  page.get_by_role('switch',name='Learn from corrections',exact=True).click()
- page.get_by_role('button',name='Dark',exact=True).click()
+ page.get_by_text('Make it your own',exact=True).click()
+ page.get_by_role('button',name='Royal',exact=True).click()
  page.get_by_role('button',name='Green board',exact=True).click()
  page.get_by_role('button',name='modern pieces',exact=True).click()
+ page.get_by_role('button',name='Glacier finish',exact=True).click()
  page.get_by_role('button',name='Close settings',exact=True).click()
  page.get_by_role('button',name='Or set up a position manually').click()
  page.get_by_role('gridcell',name='e2 white p',exact=True).click()
@@ -39,9 +41,10 @@ with sync_playwright() as p:
  # Simulate a browser restart without a connection, retaining local device storage.
  context.set_offline(True);page.close();page=context.new_page();page.on('pageerror',lambda e:errors.append(str(e)));page.goto(BASE)
  page.get_by_text('Offline · ready',exact=True).wait_for(timeout=30000)
- assert page.locator('html').get_attribute('data-theme')=='dark'
+ assert page.locator('html').get_attribute('data-theme')=='royal'
  assert page.locator('html').get_attribute('data-board')=='green'
  assert page.locator('html').get_attribute('data-pieces')=='modern'
+ assert page.locator('html').get_attribute('data-finish')=='frost'
  page.evaluate("""()=>{window.offlineTones=0;const make=AudioContext.prototype.createOscillator;AudioContext.prototype.createOscillator=function(){window.offlineTones++;return make.call(this)}}""")
  page.get_by_role('button',name='Unmute sounds',exact=True).click()
  page.locator('.recent-card').click()

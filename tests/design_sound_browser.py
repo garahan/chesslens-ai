@@ -31,7 +31,7 @@ with sync_playwright() as p:
  page.get_by_role('button',name='Analyze',exact=True).click();page.locator('.variation').first.wait_for(timeout=60000)
  layouts=[]
  for theme in ['Light','Dark','Studio']:
-  page.get_by_role('button',name='Open settings',exact=True).click();page.get_by_role('button',name=theme,exact=True).click()
+  page.get_by_role('button',name='Open settings',exact=True).click();page.get_by_text('Make it your own',exact=True).click();page.get_by_role('button',name=theme,exact=True).click()
   for width,height in [(375,667),(393,852),(402,724),(402,874),(430,932)]:
    page.set_viewport_size({'width':width,'height':height})
    assert page.get_by_role('dialog').evaluate('(e)=>e.scrollWidth<=e.clientWidth+1'),(theme,width,'settings overflow')

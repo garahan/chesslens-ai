@@ -9,30 +9,54 @@
     <meta name="theme-color" content="#f5f4ef" />
     <script>
       try {
-        const p = JSON.parse(
+        const stored = JSON.parse(
           localStorage.getItem("chesslens-appearance-v1") || "{}",
         );
-        const theme =
+        const p = stored && typeof stored === "object" ? stored : {};
+        const palettes = {
+          light: ["light", "#f5f4ef"],
+          dark: ["dark", "#141c18"],
+          studio: ["dark", "#1b1e24"],
+          royal: ["dark", "#21182d"],
+          ocean: ["dark", "#10242b"],
+          sunset: ["light", "#faf1e8"],
+        };
+        const selected =
           p.app === "system"
             ? matchMedia("(prefers-color-scheme: dark)").matches
               ? "dark"
               : "light"
-            : p.app || "light";
-        document.documentElement.dataset.theme = theme;
-        document.documentElement.dataset.board = p.board || "classic";
-        document.documentElement.dataset.pieces = p.pieces || "classic";
-        document.documentElement.style.colorScheme =
-          theme === "light" ? "light" : "dark";
+            : Object.prototype.hasOwnProperty.call(palettes, p.app)
+              ? p.app
+              : "light";
+        const root = document.documentElement;
+        root.dataset.theme = selected;
+        root.dataset.board = [
+          "classic",
+          "green",
+          "walnut",
+          "lavender",
+          "slate",
+          "ocean",
+          "clay",
+          "mono",
+        ].includes(p.board)
+          ? p.board
+          : "classic";
+        root.dataset.pieces = ["classic", "modern", "outline"].includes(
+          p.pieces,
+        )
+          ? p.pieces
+          : "classic";
+        root.dataset.finish = ["ivory", "porcelain", "frost", "brass"].includes(
+          p.finish,
+        )
+          ? p.finish
+          : "ivory";
+        root.style.colorScheme = palettes[selected][0];
         document
           .querySelector('meta[name="theme-color"]')
-          ?.setAttribute(
-            "content",
-            theme === "light"
-              ? "#f5f4ef"
-              : theme === "studio"
-                ? "#1b1e24"
-                : "#141c18",
-          );
+          ?.setAttribute("content", palettes[selected][1]);
       } catch {}
     </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
