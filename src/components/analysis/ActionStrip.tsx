@@ -1,3 +1,4 @@
+import { ChessPiece } from "../board/ChessPiece";
 import { Play } from "lucide-react";
 export function ActionStrip({
   turn,
@@ -13,7 +14,21 @@ export function ActionStrip({
 }) {
   return (
     <div className="action-strip">
-      <div className="turn-choice" role="group" aria-label="Side to move">
+      <div
+        className="turn-choice"
+        role="group"
+        aria-label="Side to move"
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+            event.preventDefault();
+            const side = event.key === "ArrowLeft" ? "w" : "b";
+            onTurn(side);
+            event.currentTarget
+              .querySelectorAll("button")
+              [side === "w" ? 0 : 1].focus();
+          }
+        }}
+      >
         {(["w", "b"] as const).map((side) => (
           <button
             key={side}
@@ -21,7 +36,7 @@ export function ActionStrip({
             aria-pressed={turn === side}
             onClick={() => onTurn(side)}
           >
-            <span className={"turn-dot " + (side === "b" ? "black" : "")} />
+            <ChessPiece piece={side === "w" ? "P" : "p"} />
             {side === "w" ? "White" : "Black"}
           </button>
         ))}

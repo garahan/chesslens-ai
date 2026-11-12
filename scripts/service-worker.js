@@ -1,15 +1,37 @@
 /* Generated during the production build; never registered by the dev server. */
 const CACHE = "chesslens-__VERSION__";
 const PRECACHE = __PRECACHE__;
+const ASSET_HASHES = __ASSET_HASHES__;
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE);
       try {
+        const prior = [];
+        for (const name of (await caches.keys())
+          .filter((name) => name.startsWith("chesslens-") && name !== CACHE)
+          .reverse()) {
+          const stored = await caches.open(name);
+          const metadata = await stored.match("/__offline_hashes__");
+          if (metadata) {
+            try {
+              prior.push({ cache: stored, hashes: await metadata.json() });
+            } catch {}
+          }
+        }
         // Limit concurrent large WASM downloads on mobile connections.
         for (let i = 0; i < PRECACHE.length; i += 3) {
           await Promise.all(
             PRECACHE.slice(i, i + 3).map(async (url) => {
+              for (const previous of prior) {
+                if (previous.hashes[url] === ASSET_HASHES[url]) {
+                  const cached = await previous.cache.match(url);
+                  if (cached) {
+                    await cache.put(url, cached);
+                    return;
+                  }
+                }
+              }
               const response = await fetch(
                 new Request(url, {
                   cache: "reload",
@@ -26,6 +48,12 @@ self.addEventListener("install", (event) => {
             }),
           );
         }
+        await cache.put(
+          "/__offline_hashes__",
+          new Response(JSON.stringify(ASSET_HASHES), {
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
         await self.skipWaiting();
       } catch (error) {
         await caches.delete(CACHE);

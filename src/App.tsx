@@ -1,9 +1,11 @@
+import { UpdateButton } from "./components/settings/UpdateButton";
+import { AppearanceSettings } from "./components/settings/AppearanceSettings";
 import { OfflineStatus } from "./components/layout/OfflineStatus";
 import { ChessPiece } from "./components/board/ChessPiece";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Chess, type Move } from "chess.js";
 import { X } from "lucide-react";
-import { ChessEngine, type Variation } from "./engine";
+import { ChessEngine, type Variation, type AnalysisLimit } from "./engine";
 import { Modal } from "./components/layout/Modal";
 import { AppShell } from "./components/layout/AppShell";
 import { AppHeader } from "./components/layout/AppHeader";
@@ -13,6 +15,7 @@ import { ScanReviewScreen } from "./screens/ScanReviewScreen";
 import { AnalysisScreen } from "./screens/AnalysisScreen";
 import "./styles/tokens.css";
 import "./styles/app.css";
+import "./styles/themes.css";
 function savedPosition() {
   try {
     const value = localStorage.getItem("chesslens-last-position");
@@ -37,7 +40,18 @@ export default function App() {
     [mode, setMode] = useState<AppMode>("home");
   const [variations, setVariations] = useState<Variation[]>([]),
     [engineState, setEngineState] = useState("Loading engine"),
-    [depth, setDepth] = useState(15),
+    [depth, setDepth] = useState<AnalysisLimit>(() => {
+      try {
+        const stored = localStorage.getItem("chesslens-depth");
+        return stored === "infinite"
+          ? "infinite"
+          : [8, 10, 15, 20, 24, 30].includes(Number(stored))
+            ? Number(stored)
+            : 15;
+      } catch {
+        return 15;
+      }
+    }),
     [engineOn, setEngineOn] = useState(false);
   const [settings, setSettings] = useState(false),
     [favoriteFen, setFavoriteFen] = useState<string | null>(() => {
@@ -49,6 +63,17 @@ export default function App() {
     }),
     [hasPosition, setHasPosition] = useState(!!restored),
     [analysisRun, setAnalysisRun] = useState(0);
+  const [visible, setVisible] = useState(!document.hidden);
+  useEffect(() => {
+    const change = () => setVisible(!document.hidden);
+    document.addEventListener("visibilitychange", change);
+    return () => document.removeEventListener("visibilitychange", change);
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("chesslens-depth", String(depth));
+    } catch {}
+  }, [depth]);
   const cameraRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null),
     engineRef = useRef<ChessEngine | null>(null);
@@ -94,9 +119,10 @@ export default function App() {
     };
   }, []);
   useEffect(() => {
-    if (engineOn && mode === "analysis") engineRef.current?.analyze(fen, depth);
+    if (engineOn && mode === "analysis" && visible)
+      engineRef.current?.analyze(fen, depth);
     else engineRef.current?.stop();
-  }, [fen, depth, engineOn, mode, analysisRun]);
+  }, [fen, depth, engineOn, mode, analysisRun, visible]);
   const move = (m: Move) => {
     const next = new Chess(fen);
     next.move(m);
@@ -286,6 +312,8 @@ export default function App() {
               variations,
               status: engineState,
               enabled: engineOn,
+              limit: depth,
+              onLimit: setDepth,
               onToggle: () => setEngineOn((v) => !v),
             }}
             fenInput={{
@@ -295,6 +323,7 @@ export default function App() {
               onLoad: () => loadFen(fenInput),
             }}
             onTurn={(turn) => {
+              if (turn === board.turn()) return;
               const parts = fen.split(" ");
               parts[1] = turn;
               parts[3] = "-";
@@ -351,12 +380,24 @@ export default function App() {
             </div>
             <label className="setting-row">
               Analysis depth
-              <select value={depth} onChange={(e) => setDepth(+e.target.value)}>
-                {[10, 15, 20, 24].map((n) => (
+              <select
+                value={depth}
+                onChange={(e) =>
+                  setDepth(
+                    e.target.value === "infinite"
+                      ? "infinite"
+                      : Number(e.target.value),
+                  )
+                }
+              >
+                {[8, 10, 15, 20, 24, 30].map((n) => (
                   <option key={n}>{n}</option>
                 ))}
+                <option value="infinite">∞ Infinite</option>
               </select>
             </label>
+            <AppearanceSettings />
+            <UpdateButton />
             <button className="secondary" onClick={toggleFavorite}>
               {favorite ? "Remove favorite position" : "Favorite this position"}
             </button>
@@ -389,7 +430,7 @@ export default function App() {
               </p>
             </div>
             <p>
-              ChessLens AI · Stockfish 19
+              ChessLens AI 0.6 · Stockfish 19
               <br />
               Screenshot recognition runs on your device.
             </p>

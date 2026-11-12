@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { CloudDownload, WifiOff, CheckCircle2 } from "lucide-react";
 export function OfflineStatus() {
+  const [updateReady, setUpdateReady] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [state, setState] = useState<
     "preparing" | "ready" | "failed" | "development"
@@ -49,8 +50,13 @@ export function OfflineStatus() {
         [channel.port2],
       );
     };
+    let hadController = !!navigator.serviceWorker.controller;
     const change = () => {
-      if (navigator.serviceWorker.controller) ready();
+      if (navigator.serviceWorker.controller) {
+        ready();
+        if (hadController) setUpdateReady(true);
+        hadController = true;
+      }
     };
     navigator.serviceWorker.addEventListener("controllerchange", change);
     navigator.serviceWorker
@@ -80,6 +86,16 @@ export function OfflineStatus() {
           registration.removeEventListener("updatefound", track),
         );
         track();
+        const update = () => {
+          if (navigator.onLine && !document.hidden)
+            registration.update().catch(() => {});
+        };
+        window.addEventListener("focus", update);
+        document.addEventListener("visibilitychange", update);
+        cleanups.push(() => {
+          window.removeEventListener("focus", update);
+          document.removeEventListener("visibilitychange", update);
+        });
       })
       .catch(() => {
         if (!cancelled) setState("failed");
@@ -116,7 +132,15 @@ export function OfflineStatus() {
       ) : (
         <CloudDownload size={14} />
       )}
-      <span>{label}</span>
+      <span>{updateReady ? "New version ready" : label}</span>
+      {updateReady && (
+        <button
+          className="text-button update-link"
+          onClick={() => location.reload()}
+        >
+          Reload app
+        </button>
+      )}
       {state === "failed" && (
         <button
           className="text-button"

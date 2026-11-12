@@ -1,12 +1,12 @@
 {
   "name": "ChessLens AI",
   "short_name": "ChessLens",
-  "description": "Chess screenshot analysis",
+  "description": "Offline chess scanner and analysis with customizable themes",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#2E1065",
-  "theme_color": "#2E1065",
+  "background_color": "#292d27",
+  "theme_color": "#292d27",
   "icons": [
     {
       "src": "/icons/icon-192.png",

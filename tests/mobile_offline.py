@@ -12,9 +12,15 @@ with sync_playwright() as p:
  page.goto(BASE)
  page.get_by_text('Ready offline',exact=True).wait_for(timeout=120000)
  assert page.get_by_role('button',name='Share position').count()==0
+ page.get_by_role('button',name='Open settings',exact=True).click()
+ page.get_by_role('button',name='Dark',exact=True).click()
+ page.get_by_role('button',name='Green board',exact=True).click()
+ page.get_by_role('button',name='modern pieces',exact=True).click()
+ page.get_by_role('button',name='Close settings',exact=True).click()
  page.get_by_role('button',name='Or set up a position manually').click()
  page.get_by_role('gridcell',name='e2 white p',exact=True).click()
  page.get_by_role('gridcell',name='e4 empty',exact=True).click()
+ page.get_by_role('combobox',name='Analysis depth limit').select_option('infinite')
  page.get_by_role('button',name='Analyze',exact=True).click()
  page.locator('.variation').first.wait_for(timeout=60000)
  boxes=[]
@@ -31,6 +37,9 @@ with sync_playwright() as p:
  # Simulate a browser restart without a connection, retaining local device storage.
  context.set_offline(True);page.close();page=context.new_page();page.on('pageerror',lambda e:errors.append(str(e)));page.goto(BASE)
  page.get_by_text('Offline · ready',exact=True).wait_for(timeout=30000)
+ assert page.locator('html').get_attribute('data-theme')=='dark'
+ assert page.locator('html').get_attribute('data-board')=='green'
+ assert page.locator('html').get_attribute('data-pieces')=='modern'
  page.locator('.recent-card').click()
  page.get_by_text('Position tools & history',exact=True).click()
  assert ' b ' in page.locator('#fen-input').input_value()
@@ -38,7 +47,7 @@ with sync_playwright() as p:
  page.locator('.variation').first.wait_for(timeout=60000)
  # The general ONNX path must execute offline, not merely cache the app shell.
  page.locator('input[type=file]').first.set_input_files(str(ROOT/'artifacts/offline-general-input.png'))
- page.get_by_text('General scanner',exact=True).wait_for(timeout=60000)
+ page.get_by_text('General scanner',exact=True).wait_for(state='attached',timeout=60000)
  assert 'Scanner could not run' not in page.locator('body').inner_text()
  # Real Duolingo recognition must remain exact offline, with no confirmation gate.
  page.locator('input[type=file]').first.set_input_files(IMAGE)

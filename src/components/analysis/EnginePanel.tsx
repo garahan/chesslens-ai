@@ -1,5 +1,5 @@
-import { Cpu, Infinity as InfinityIcon } from "lucide-react";
-import type { Variation } from "../../engine";
+import { Cpu } from "lucide-react";
+import type { Variation, AnalysisLimit } from "../../engine";
 export function evaluation(v?: Variation) {
   return v?.mate != null
     ? `#${v.mate}`
@@ -12,11 +12,15 @@ export function EnginePanel({
   status,
   enabled,
   onToggle,
+  limit,
+  onLimit,
 }: {
   variations: Variation[];
   status: string;
   enabled: boolean;
   onToggle: () => void;
+  limit: AnalysisLimit;
+  onLimit: (limit: AnalysisLimit) => void;
 }) {
   return (
     <section className="engine-panel" aria-label="Engine analysis">
@@ -30,7 +34,26 @@ export function EnginePanel({
             Depth {variations[0]?.depth || "—"} · {enabled ? status : "Paused"}
           </span>
         </div>
-        <InfinityIcon size={19} className="engine-live" />
+        <label className="depth-limit" title="Analysis depth limit">
+          <select
+            aria-label="Analysis depth limit"
+            value={limit}
+            onChange={(event) =>
+              onLimit(
+                event.target.value === "infinite"
+                  ? "infinite"
+                  : Number(event.target.value),
+              )
+            }
+          >
+            {[8, 10, 15, 20, 24, 30].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+            <option value="infinite">∞</option>
+          </select>
+        </label>
         <button
           className="switch"
           role="switch"

@@ -77,3 +77,31 @@ test("every square in the supplied screenshot regression is classified correctly
     );
   });
 });
+
+import { combineMatches } from "../src/duolingo.ts";
+test("stable multi-sample matches reduce marginal warnings without hiding disagreements", () => {
+  const hit = (piece, n, q) => ({
+    piece,
+    score: Math.min(n, q),
+    margin: Math.abs(n - q),
+    confidence: 0.9,
+    scores: { N: n, Q: q },
+  });
+  const stable = combineMatches(
+    Array.from({ length: 5 }, () => hit("N", 0.04, 0.049)),
+  );
+  assert.equal(stable.piece, "N");
+  assert.equal(stable.uncertain, false);
+  const ambiguous = combineMatches(
+    Array.from({ length: 5 }, () => hit("N", 0.04, 0.041)),
+  );
+  assert.equal(ambiguous.uncertain, true);
+  const disagree = combineMatches([
+    hit("N", 0.04, 0.09),
+    hit("N", 0.04, 0.09),
+    hit("Q", 0.09, 0.04),
+    hit("Q", 0.09, 0.04),
+    hit("Q", 0.09, 0.04),
+  ]);
+  assert.equal(disagree.uncertain, true);
+});

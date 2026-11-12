@@ -195,6 +195,33 @@ export function classify(mask: Float32Array, color: number[]) {
     score: best,
     margin: ranked[1][1] - best,
     confidence: clamp(1 - best * 2.2, 0, 1),
+    scores: Object.fromEntries(ranked),
+  };
+}
+/** Use independent subpixel samples; disagreement remains visible for review. */
+export function combineMatches(hits: ReturnType<typeof classify>[]) {
+  if (!hits.length) throw new Error("No tile samples");
+  const scores = Object.keys(hits[0].scores)
+    .map((piece) => {
+      const values = hits.map((hit) => hit.scores[piece]).sort((a, b) => a - b);
+      const core = values.length >= 5 ? values.slice(1, -1) : values;
+      return { piece, score: core.reduce((a, b) => a + b, 0) / core.length };
+    })
+    .sort((a, b) => a.score - b.score);
+  const best = scores[0],
+    margin = scores[1].score - best.score;
+  const agreement =
+    hits.filter((hit) => hit.piece === best.piece).length / hits.length;
+  const stable =
+    hits.length >= 5 && agreement === 1 && best.score < 0.085 && margin > 0.006;
+  return {
+    piece: best.piece,
+    score: best.score,
+    margin,
+    agreement,
+    confidence: clamp(1 - best.score * 2.2, 0, 1),
+    uncertain:
+      best.score > 0.14 || agreement < 0.8 || (margin < 0.012 && !stable),
   };
 }
 export async function recognizeDuolingoScreenshot(
@@ -218,39 +245,49 @@ export async function recognizeDuolingoScreenshot(
     height,
   );
   if (top === null) return null;
-  // Preserve precise pixel grid by extracting one square at a time.
   const tile = document.createElement("canvas");
-  tile.width = tile.height = 192;
+  tile.width = tile.height = 24;
   const tileContext = tile.getContext("2d", { willReadFrequently: true });
   if (!tileContext) throw Error("Canvas tile processing unavailable");
+  tileContext.imageSmoothingEnabled = true;
   tileContext.imageSmoothingQuality = "high";
-  const sourceHeight = img.naturalWidth;
-  const scale = img.naturalWidth / width;
-  // Use the detected transition directly; adding a pixel can cross a rank boundary.
-  tileContext.drawImage(
-    img,
-    0,
-    top * scale,
-    sourceHeight,
-    sourceHeight,
-    0,
-    0,
-    192,
-    192,
-  );
-  const data = tileContext.getImageData(0, 0, 192, 192);
+  const scale = img.naturalWidth / width,
+    sourceTop = top * scale,
+    sourceCell = img.naturalWidth / 8;
   const squares: string[] = [],
     confidences: number[] = [],
     uncertainSquares: string[] = [];
-  for (let r = 0; r < 8; r++)
-    for (let c = 0; c < 8; c++) {
-      const { mask, color } = feature(data, r, c);
-      const hit = classify(mask, color);
+  // Sample each source square directly rather than rescaling the entire board.
+  // Tiny offsets test whether JPEG edges/resampling change the predicted label.
+  const offsets = [
+    [0, 0],
+    [-0.3, 0],
+    [0.3, 0],
+    [0, -0.3],
+    [0, 0.3],
+  ];
+  for (let row = 0; row < 8; row++)
+    for (let col = 0; col < 8; col++) {
+      const hits = offsets.map(([dx, dy]) => {
+        tileContext.clearRect(0, 0, 24, 24);
+        tileContext.drawImage(
+          img,
+          col * sourceCell + (dx * sourceCell) / 24,
+          sourceTop + row * sourceCell + (dy * sourceCell) / 24,
+          sourceCell,
+          sourceCell,
+          0,
+          0,
+          24,
+          24,
+        );
+        const sample = feature(tileContext.getImageData(0, 0, 24, 24), 0, 0);
+        return classify(sample.mask, sample.color);
+      });
+      const hit = combineMatches(hits);
       squares.push(hit.piece);
       confidences.push(hit.confidence);
-      if (hit.score > 0.14 || hit.margin < 0.012) {
-        uncertainSquares.push("abcdefgh"[c] + (8 - r));
-      }
+      if (hit.uncertain) uncertainSquares.push("abcdefgh"[col] + (8 - row));
     }
   const topWhites = squares
     .slice(0, 16)

@@ -235,7 +235,7 @@ export function ScanEditor({
               {uncertain.length
                 ? `${uncertain.length} uncertain squares · tap to edit`
                 : result
-                  ? `Scan ${Math.round(result.meanConfidence * 100)}% · details`
+                  ? `Match ${Math.round(result.meanConfidence * 100)}% · details`
                   : "Scanner details"}
             </summary>
             <div className="review-card-title">
@@ -253,7 +253,7 @@ export function ScanEditor({
             {result && (
               <>
                 <div className="confidence-row">
-                  <span>Recognition confidence</span>
+                  <span>Visual match</span>
                   <strong>{(result.meanConfidence * 100).toFixed(0)}%</strong>
                 </div>
                 <div

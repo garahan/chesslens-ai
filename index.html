@@ -6,7 +6,25 @@
       name="viewport"
       content="width=device-width,initial-scale=1,viewport-fit=cover"
     />
-    <meta name="theme-color" content="#2E1065" />
+    <meta name="theme-color" content="#292d27" />
+    <script>
+      try {
+        const p = JSON.parse(
+          localStorage.getItem("chesslens-appearance-v1") || "{}",
+        );
+        const theme =
+          p.app === "system"
+            ? matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light"
+            : p.app || "light";
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.board = p.board || "classic";
+        document.documentElement.dataset.pieces = p.pieces || "classic";
+        document.documentElement.style.colorScheme =
+          theme === "light" ? "light" : "dark";
+      } catch {}
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
