@@ -533,7 +533,7 @@ export default function App() {
               </p>
             </div>
             <p className="build-info">
-              ChessLens AI 0.13.0 · Stockfish 19
+              ChessLens AI 0.14.0 · Stockfish 19
               <br />
               Your screenshots stay on your device.
             </p>

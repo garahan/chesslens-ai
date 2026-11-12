@@ -155,7 +155,7 @@ export function AppearanceSettings() {
           </div>
         </fieldset>
         <fieldset>
-          <legend>Piece shape</legend>
+          <legend>Piece collection</legend>
           <div className="theme-options pieces">
             {PIECE_STYLES.map((id) => (
               <button
@@ -164,8 +164,14 @@ export function AppearanceSettings() {
                 aria-pressed={appearance.pieces === id}
                 onClick={() => change("pieces", id)}
               >
-                <ChessPiece piece="N" appearance={id} />
-                {id[0].toUpperCase() + id.slice(1)}
+                <span className="piece-set-label">
+                  {id[0].toUpperCase() + id.slice(1)}
+                </span>
+                <span className="piece-set-preview">
+                  {["K", "Q", "R", "b", "n", "p"].map((piece) => (
+                    <ChessPiece key={piece} piece={piece} appearance={id} />
+                  ))}
+                </span>
               </button>
             ))}
           </div>

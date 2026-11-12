@@ -1,3 +1,4 @@
+import { extraShapes } from "./piece-shapes";
 import { memo } from "react";
 import { useAppearance, type PieceStyle } from "../../appearance";
 /** A single vector piece set shared by the board, scanner, and piece pickers. */
@@ -13,6 +14,12 @@ export const ChessPiece = memo(function ChessPiece({
   if (!/^[kqrbnp]$/i.test(piece)) return null;
   const white = piece === piece.toUpperCase();
   const type = piece.toLowerCase();
+  const custom =
+    style in extraShapes
+      ? extraShapes[style as keyof typeof extraShapes][
+          type as "k" | "q" | "r" | "b" | "n" | "p"
+        ]
+      : null;
   return (
     <svg
       className={`chess-piece piece-set-${style} ${white ? "chess-piece-white" : "chess-piece-black"}`}
@@ -21,7 +28,26 @@ export const ChessPiece = memo(function ChessPiece({
       focusable="false"
     >
       <g strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2">
-        {style !== "modern" ? (
+        {custom ? (
+          <>
+            {custom.map((d, index) => (
+              <path
+                key={index}
+                d={d}
+                className={index ? "piece-detail" : undefined}
+              />
+            ))}
+            {type === "n" && (
+              <circle
+                className="piece-eye"
+                cx={style === "geometric" ? 36 : 34}
+                cy={style === "geometric" ? 18 : 20}
+                r="1.5"
+                stroke="none"
+              />
+            )}
+          </>
+        ) : style !== "modern" ? (
           <>
             {type === "p" && (
               <>

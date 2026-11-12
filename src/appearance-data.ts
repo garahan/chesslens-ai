@@ -9,7 +9,8 @@ export type BoardTheme =
   | "ocean"
   | "clay"
   | "mono";
-export type PieceStyle = "classic" | "modern" | "outline";
+export type PieceStyle =
+  "classic" | "modern" | "outline" | "staunton" | "geometric" | "rounded";
 export type PieceFinish = "ivory" | "porcelain" | "frost" | "brass";
 export type Appearance = {
   app: AppTheme;
@@ -77,7 +78,14 @@ export const BOARD_THEMES = [
   { id: "clay", name: "Clay", light: "#f4e0d4", dark: "#c38d78" },
   { id: "mono", name: "Mono", light: "#f0f0f2", dark: "#8e9198" },
 ] as const;
-export const PIECE_STYLES = ["classic", "modern", "outline"] as const;
+export const PIECE_STYLES = [
+  "classic",
+  "modern",
+  "outline",
+  "staunton",
+  "geometric",
+  "rounded",
+] as const;
 export const PIECE_FINISHES = [
   { id: "ivory", name: "Ivory" },
   { id: "porcelain", name: "Porcelain" },

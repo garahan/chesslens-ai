@@ -43,9 +43,14 @@
         ].includes(p.board)
           ? p.board
           : "classic";
-        root.dataset.pieces = ["classic", "modern", "outline"].includes(
-          p.pieces,
-        )
+        root.dataset.pieces = [
+          "classic",
+          "modern",
+          "outline",
+          "staunton",
+          "geometric",
+          "rounded",
+        ].includes(p.pieces)
           ? p.pieces
           : "classic";
         root.dataset.finish = ["ivory", "porcelain", "frost", "brass"].includes(
