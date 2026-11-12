@@ -1,4 +1,37 @@
 import { Chess } from "chess.js";
+/** Minimum promoted material, including bishops that share a square color. */
+export function promotionRequirements(squares: string[]) {
+  return (["w", "b"] as const).map((color) => {
+    let minimum = 0;
+    const indices: number[] = [];
+    const matching = (type: string) =>
+      squares.flatMap((piece, i) =>
+        piece === (color === "w" ? type.toUpperCase() : type) ? [i] : [],
+      );
+    for (const [type, original] of [
+      ["q", 1],
+      ["r", 2],
+      ["n", 2],
+    ] as const) {
+      const found = matching(type);
+      if (found.length > original) {
+        minimum += found.length - original;
+        indices.push(...found);
+      }
+    }
+    const bishops = matching("b");
+    for (const parity of [0, 1]) {
+      const group = bishops.filter(
+        (i) => (Math.floor(i / 8) + (i % 8)) % 2 === parity,
+      );
+      if (group.length > 1) {
+        minimum += group.length - 1;
+        indices.push(...group);
+      }
+    }
+    return { color, minimum, indices };
+  });
+}
 /** Necessary scanner constraints; these do not prove full historical reachability. */
 export function validatePlacement(
   squares: string[],
@@ -64,6 +97,7 @@ export function materialErrors(
     squares.some((piece) => !/^[.prnbqkPRNBQK]$/.test(piece))
   )
     return ["Invalid board symbols"];
+  const promotions = promotionRequirements(squares);
   for (const color of ["w", "b"]) {
     const piece = (type: string) => (color === "w" ? type.toUpperCase() : type);
     const count = (type: string) =>
@@ -80,16 +114,9 @@ export function materialErrors(
         (color === "w" ? p === p.toUpperCase() : p === p.toLowerCase()),
     ).length;
     if (total > 16) errors.push(`${name} has more than sixteen pieces`);
-    const bishops = [0, 0];
-    squares.forEach((p, index) => {
-      if (p === piece("b"))
-        bishops[(Math.floor(index / 8) + (index % 8)) % 2]++;
-    });
-    const minimumPromotions =
-      Math.max(0, count("q") - 1) +
-      Math.max(0, count("r") - 2) +
-      Math.max(0, count("n") - 2) +
-      bishops.reduce((sum, n) => sum + Math.max(0, n - 1), 0);
+    const minimumPromotions = promotions.find(
+      (row) => row.color === color,
+    )!.minimum;
     if (
       (noCaptures || squares.filter((p) => p !== ".").length === 32) &&
       minimumPromotions > 0

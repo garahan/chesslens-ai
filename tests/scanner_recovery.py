@@ -26,6 +26,7 @@ with sync_playwright() as p:
  page.goto(BASE)
  image=ROOT/'artifacts/blank-scan.png';image.write_bytes(base64.b64decode(page.evaluate("()=>{const c=document.createElement('canvas');c.width=c.height=100;c.getContext('2d').fillRect(0,0,100,100);return c.toDataURL().split(',')[1]}")))
  page.locator('input[type=file]').first.set_input_files(str(image))
+ page.get_by_role('combobox',name='Scanner type',exact=True).select_option('general')
  page.get_by_text('The general scanner did not find a valid position.',exact=False).wait_for(timeout=30000)
  assert page.locator('.editorboard').count()==0
  assert page.get_by_role('button',name='Analyze',exact=True).is_disabled()

@@ -14,6 +14,30 @@ test("Duolingo signatures include each piece and empty squares", () => {
   }
 });
 
+test("piece alignment preserves all labels across one-pixel offsets, including queen versus rook", () => {
+  let checked = 0;
+  for (const row of duolingoSignatures.trim().split("\n")) {
+    const [piece, raw, rgb] = row.split("|");
+    if (piece === "-") continue;
+    const mask = Float32Array.from(raw, (ch) => Number(ch) / 9);
+    for (const dy of [-1, 0, 1])
+      for (const dx of [-1, 0, 1]) {
+        const moved = Float32Array.from(mask, (_, i) => {
+          const x = (i % 12) - dx,
+            y = Math.floor(i / 12) - dy;
+          return x >= 0 && x < 12 && y >= 0 && y < 12 ? mask[y * 12 + x] : 0;
+        });
+        assert.equal(
+          classify(moved, rgb.split(",").map(Number)).piece,
+          piece,
+          `${piece} offset ${dx},${dy}`,
+        );
+        checked++;
+      }
+  }
+  assert.equal(checked, 216);
+});
+
 import { readFileSync } from "node:fs";
 import { locateBoard, feature, classify } from "../src/duolingo.ts";
 const light = [38, 52, 58],

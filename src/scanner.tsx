@@ -12,7 +12,11 @@ import { ChessPiece } from "./components/board/ChessPiece";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
 import { scanImage, parsePlacement, type ScanOutcome } from "./vision";
-import { validatePlacement, validateAnalysisPosition } from "./position";
+import {
+  validatePlacement,
+  validateAnalysisPosition,
+  promotionRequirements,
+} from "./position";
 import { SourceBoard } from "./components/scanner/SourceBoard";
 import { ActionStrip } from "./components/analysis/ActionStrip";
 const palette = [
@@ -64,6 +68,7 @@ export function ScanEditor({
     index: number;
     before: string;
     uncertain: boolean;
+    required: boolean;
     learning: ReturnType<typeof learnCorrection>;
   } | null>(null);
   const [notice, setNotice] = useState("");
@@ -71,7 +76,7 @@ export function ScanEditor({
   const [crop, setCrop] = useState<BoardCrop | undefined>();
   const [scannerMode, setScannerMode] = useState<
     "auto" | "duolingo" | "general"
-  >("auto");
+  >("duolingo");
   const requestRef = useRef(0);
   const boardRef = useRef<HTMLDivElement>(null);
   const [showOriginal, setShowOriginal] = useState(false);
@@ -88,6 +93,15 @@ export function ScanEditor({
     [error, setError] = useState(""),
     [scanning, setScanning] = useState(false),
     [result, setResult] = useState<ScanOutcome | null>(null);
+  const [requiredReview, setRequiredReview] = useState<string[]>([]);
+  const activeReview = useMemo(() => {
+    const indices = new Set(
+      promotionRequirements(pieces).flatMap((row) => row.indices),
+    );
+    return requiredReview.filter((square) =>
+      indices.has((8 - Number(square[1])) * 8 + "abcdefgh".indexOf(square[0])),
+    );
+  }, [requiredReview, pieces]);
   const issues = useMemo(() => validatePlacement(pieces, turn), [pieces, turn]);
   const fen = useMemo(
     () =>
@@ -107,6 +121,7 @@ export function ScanEditor({
     setManuallyEdited(false);
     setTurnConfirmed(false);
     setFocusedSquare(null);
+    setRequiredReview([]);
     setShowOriginal(false);
 
     setError("");
@@ -129,6 +144,7 @@ export function ScanEditor({
           : [],
       );
       setUncertain(detected.uncertainSquares || []);
+      setRequiredReview(detected.reviewRequiredSquares || []);
       if (detected.temporal) {
         setTurn(detected.temporal.fen.split(" ")[1] as "w" | "b");
         setTurnConfirmed(true);
@@ -162,10 +178,12 @@ export function ScanEditor({
       index,
       before: pieces[index],
       uncertain: uncertain.includes(square),
+      required: requiredReview.includes(square),
       learning,
     });
     setPieces((old) => old.map((value, i) => (i === index ? piece : value)));
     setUncertain((old) => old.filter((value) => value !== square));
+    setRequiredReview((old) => old.filter((value) => value !== square));
     setManuallyEdited(true);
     setFocusedSquare(null);
     setNotice(
@@ -184,6 +202,13 @@ export function ScanEditor({
         "abcdefgh"[lastEdit.index % 8] + (8 - Math.floor(lastEdit.index / 8));
       setUncertain((old) => (old.includes(square) ? old : [...old, square]));
     }
+    if (lastEdit.required) {
+      const square =
+        "abcdefgh"[lastEdit.index % 8] + (8 - Math.floor(lastEdit.index / 8));
+      setRequiredReview((old) =>
+        old.includes(square) ? old : [...old, square],
+      );
+    }
     const restored = !lastEdit.learning || undoLearning(lastEdit.learning);
     setNotice(
       restored
@@ -195,6 +220,8 @@ export function ScanEditor({
   const analyze = () => {
     try {
       if (!turnConfirmed) throw Error("Select whose turn it is");
+      if (activeReview.length)
+        throw Error("Review the unclear extra pieces before analysis");
       if (issues.errors.length) throw Error(issues.errors.join("; "));
       validateAnalysisPosition(fen);
       const board = new Chess(fen);
@@ -221,6 +248,7 @@ export function ScanEditor({
     !scanning &&
     (!!result || manuallyEdited) &&
     turnConfirmed &&
+    !activeReview.length &&
     !issues.errors.length;
   const exportLabels = async () => {
     if (!file || !result?.boardCrop) return;
@@ -465,6 +493,13 @@ export function ScanEditor({
                   </button>
                 ))}
               </div>
+            )}
+            {activeReview.length > 0 && (
+              <p className="notice" role="status">
+                Extra pieces have weak visual matches. Compare{" "}
+                {activeReview.join(", ")} with the original, then choose the
+                correct pieces to enable analysis.
+              </p>
             )}
             <button
               className="text-button editor-toggle"

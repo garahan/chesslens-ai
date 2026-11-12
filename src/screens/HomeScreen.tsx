@@ -44,9 +44,9 @@ export function HomeScreen({
         </button>
       </div>
       <p className="source-hint">
-        Best for screenshots from apps, websites,
+        Duolingo scanner is on by default.
         <br />
-        and Duolingo Chess
+        Other chess screenshots: choose General in scanner details.
       </p>
       {recent && (
         <button className="recent-card" onClick={onRecent}>

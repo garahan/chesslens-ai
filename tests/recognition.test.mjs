@@ -108,7 +108,7 @@ test("native references preserve missing-class fallbacks and personal influence 
   const ref = atlas.samples.find((s) => s.piece === "P");
   const input = { ...ref, coarse: "0".repeat(144), style: "duo-teal-v1" };
   const scores = Object.fromEntries(
-    [...PIECES].map((p) => [p, p === "B" ? 0.04 : p === "P" ? 0.045 : 0.3]),
+    [...PIECES].map((p) => [p, p === "R" ? 0.04 : p === "P" ? 0.045 : 0.3]),
   );
   const original = { ...scores };
   const result = refineWithLibrary(scores, input);
@@ -126,6 +126,17 @@ test("native references preserve missing-class fallbacks and personal influence 
       .scores.B,
     original.B,
   );
+  const closeMissing = { ...scores, B: 0.04 };
+  assert.equal(refineWithLibrary(closeMissing, input).scores.P, closeMissing.P);
+  const queenContest = { ...scores, q: 0.04, r: 0.045, R: 0.3, P: 0.3 };
+  const rook = atlas.samples.find((s) => s.piece === "r");
+  const guarded = refineWithLibrary(queenContest, {
+    ...rook,
+    coarse: "0".repeat(144),
+    style: "duo-teal-v1",
+  });
+  assert.equal(guarded.piece, "q");
+  assert.equal(guarded.scores.r, queenContest.r);
 });
 test("trained reader returns finite normalized activations without claiming validation", () => {
   const fixture = JSON.parse(

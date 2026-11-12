@@ -37,6 +37,7 @@ export class RecognitionFailure extends Error {
   }
 }
 export type RecognitionExtras = {
+  reviewRequiredSquares?: string[];
   diagnostics?: RecognitionDiagnostics;
   learningTiles?: Record<string, PieceSample>;
   temporal?: TemporalMatch;

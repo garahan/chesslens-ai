@@ -47,3 +47,17 @@ Raw originals go to ignored `benchmarks/raw/`; only metadata and numerical refer
 ## Verification scope
 
 Automated coverage includes original recognition, bordered crops, impossible-board rejection, local profile opt-out/Undo/reset/storage failures, legal tracking and special moves, ambiguous and bounded-search rejection, mobile corrections and exports, real Stockfish output, and production offline cold reopen. Browser tests use Chromium with phone-sized viewports. Physical iPhone Safari and the newest screenshots visible only in chat have not been independently tested.
+
+## 0.7.1: queen/rook confusion and the default scanner
+
+Each import now starts in **Duolingo** mode, including an identical image reimported after General mode. Non-Duolingo images require an explicit General or Auto selection. A scan session changes only when the latest image finishes decoding, so a stale file-reader callback cannot pair one file with another preview.
+
+The primary matcher aligns every numerical reference over ±1 pixel on the 12×12 grid, with a 0.007 penalty per translation step. Previously, a one-pixel vertical shift could turn a queen into a rook. The synthetic alignment regression now passes **216/216**, versus **161/216** with the previous classifier; queen/rook cases improve from **41/72 to 72/72**. These are transformed training references, not unseen screenshots. The original image and five size/frame variants still pass 64/64 each. [Recorded screenshot regression](../benchmarks/results/v0.7.1-regression.json) and [alignment regression](../benchmarks/results/v0.7.1-alignment.json).
+
+An incomplete native library cannot cast a vote against a close competing class that has no native references. This prevents native rook examples from unfairly displacing legacy queen matches. Verified personal references retain their bounded influence.
+
+Board inference minimizes `sum(tile visual distances) + 0.055 × minimum required promotions`, subject to existing hard chess constraints. Candidate labels remain within 0.04 of the local visual winner; very clear matches remain fixed. The small material prior prefers a close ordinary queen interpretation over three rooks requiring an unobserved promotion. It never simply limits rooks to two: clear promoted material remains valid, and a queen without visual support is never invented. Crop ranking now includes the selected labels' costs rather than the rejected local winners' costs.
+
+If the best interpretation still contains extra material with weak visual evidence, the affected squares remain highlighted and Analyze stays disabled until those pieces are explicitly chosen or corrected. Choosing the already displayed rook is sufficient when it really is a promoted rook. Undo restores the review requirement; correcting a queen so the surplus disappears also clears that material requirement. There is no verification checkbox.
+
+Additional checks: `tests/duolingo_defaults.py` covers explicit General selection, repeated imports, focused extra-rook review and Undo. Structural tests reproduce the reported three-rook material pattern, prefer its close queen candidate, preserve a clear true third rook, and request review when no defensible queen candidate exists. The newest chat image shows the app's recognized board, not the original Duolingo pixels, and is not mounted as a new source fixture; no claim is made that its exact pixel input has been validated. Physical iPhone Safari remains untested.

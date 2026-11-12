@@ -21,9 +21,18 @@ export function refineWithLibrary(
       evidence[reference.piece] = { distance, personal };
   }
   const ordered = Object.entries(scores).sort((a, b) => a[1] - b[1]);
+  const nativeLabels = new Set(
+    atlas.samples.map((reference) => reference.piece),
+  );
+  const incompleteCompetition = ordered.some(
+    ([piece, cost]) => cost <= ordered[0][1] + 0.03 && !nativeLabels.has(piece),
+  );
   // The atlas is incomplete: bounded adjustments, never a replacement for missing classes.
   for (const [piece, e] of Object.entries(evidence)) {
     if (adjusted[piece] === undefined) continue;
+    // Missing queen/bishop references cannot vote against themselves. Do not let
+    // an incomplete atlas tilt a close rook/queen contest toward the covered class.
+    if (!e.personal && incompleteCompetition) continue;
     const strength = e.personal ? 0.028 : 0.012;
     if (e.distance < 0.3)
       adjusted[piece] = Math.max(

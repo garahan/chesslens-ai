@@ -32,6 +32,8 @@ type AppMode = "home" | "review" | "analysis";
 export default function App() {
   const [restored] = useState(savedPosition);
   const [scanFile, setScanFile] = useState<File | null>(null);
+  const [scanSession, setScanSession] = useState(0);
+  const scanRequest = useRef(0);
   const [fenInput, setFenInput] = useState(restored || START),
     [history, setHistory] = useState<string[]>([restored || START]),
     [index, setIndex] = useState(0),
@@ -178,16 +180,21 @@ export default function App() {
       setError("Maximum 12 MB image.");
       return;
     }
-    setScanFile(f);
+    const request = ++scanRequest.current;
     const reader = new FileReader();
     reader.onload = () => {
+      if (request !== scanRequest.current) return;
+      setScanFile(f);
       setImage(String(reader.result));
+      setScanSession(request);
       setMode("review");
       setEngineOn(false);
       setError("");
     };
-    reader.onerror = () =>
-      setError("This image could not be opened. Choose another image.");
+    reader.onerror = () => {
+      if (request === scanRequest.current)
+        setError("This image could not be opened. Choose another image.");
+    };
     reader.readAsDataURL(f);
   };
   useEffect(() => {
@@ -288,7 +295,7 @@ export default function App() {
           />
         ) : mode === "review" && image ? (
           <ScanReviewScreen
-            key={image}
+            key={scanSession}
             image={image}
             file={scanFile}
             onAnalyze={loadFen}
@@ -435,7 +442,7 @@ export default function App() {
               </p>
             </div>
             <p>
-              ChessLens AI 0.7.0 · Stockfish 19
+              ChessLens AI 0.7.1 · Stockfish 19
               <br />
               Screenshot recognition runs on your device.
             </p>

@@ -48,6 +48,7 @@ with sync_playwright() as p:
  page.locator('.variation').first.wait_for(timeout=60000)
  # The general ONNX path must execute offline, not merely cache the app shell.
  page.locator('input[type=file]').first.set_input_files(str(ROOT/'artifacts/offline-general-input.png'))
+ page.get_by_role('combobox',name='Scanner type',exact=True).select_option('general')
  page.wait_for_function("document.querySelector('.scaneditor')?.textContent.includes('general scanner did not find a valid position') || document.querySelector('.review-card')?.textContent.includes('General scanner')",timeout=60000)
  assert 'no available backend' not in page.locator('body').inner_text()
  if 'general scanner did not find a valid position' in page.locator('body').inner_text():assert page.locator('.editorboard').count()==0

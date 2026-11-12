@@ -49,12 +49,13 @@ export async function scanImage(
     useTracking?: boolean;
   } = {},
 ): Promise<ScanOutcome | null> {
+  const mode = options.mode ?? "duolingo";
   const duolingo =
-    options.mode === "general"
+    mode === "general"
       ? null
       : await recognizeDuolingoScreenshot(file, options.crop, options);
   if (duolingo) return { ...duolingo, source: "Duolingo-specific recognizer" };
-  if (options.mode === "duolingo")
+  if (mode === "duolingo")
     throw new Error(
       "Duolingo board not found. Adjust the board crop and try again.",
     );

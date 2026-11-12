@@ -67,3 +67,55 @@ test("illegal last-mover check is rejected while a legal checked side can analyz
     validateAnalysisPosition("4k3/8/8/8/8/8/4R3/4K3 b - - 0 1"),
   );
 });
+
+// Constructed score fixture matching the reported material pattern; not a pixel accuracy claim.
+const reported = () =>
+  new Chess("r2qk2r/2p1bppp/2p2n2/p2p4/3P1P2/2P3P1/P3Q2P/RNB1K1NR w - - 0 1")
+    .board()
+    .flat()
+    .map((p) => (p ? (p.color === "w" ? p.type.toUpperCase() : p.type) : "."));
+const scored = (squares) =>
+  squares.map((piece) => ({ piece, scores: { [piece]: 0.01 } }));
+test("close queen evidence beats an explanation requiring a third rook promotion", () => {
+  const truth = reported(),
+    tiles = scored(truth);
+  tiles[3] = { piece: "r", scores: { r: 0.065, q: 0.09 } };
+  const result = inferDuolingoPosition(tiles);
+  assert.ok(result);
+  assert.deepEqual(result.squares, truth);
+  assert.deepEqual(result.adjusted, [3]);
+  assert.deepEqual(result.promotionReview, []);
+});
+test("clear promoted rook evidence is preserved rather than enforcing a two-rook cap", () => {
+  const truth = reported();
+  truth[3] = "r";
+  assert.deepEqual(materialErrors(truth), []);
+  const tiles = scored(truth);
+  tiles[3].scores.q = 0.2;
+  const result = inferDuolingoPosition(tiles);
+  assert.deepEqual(result?.squares, truth);
+  assert.deepEqual(result.promotionReview, []);
+});
+test("weak extra-rook evidence requests focused review instead of inventing a queen", () => {
+  const truth = reported();
+  truth[3] = "r";
+  const tiles = scored(truth);
+  tiles[3] = { piece: "r", scores: { r: 0.07, q: 0.2 } };
+  const result = inferDuolingoPosition(tiles);
+  assert.deepEqual(result?.squares, truth);
+  assert.deepEqual(result.promotionReview, [3]);
+});
+
+test("extra-rook decisions also hold with Black at the bottom", () => {
+  const truth = reported().reverse(),
+    tiles = scored(truth);
+  tiles[60] = { piece: "r", scores: { r: 0.065, q: 0.09 } };
+  const ordinary = inferDuolingoPosition(tiles);
+  assert.deepEqual(ordinary?.squares, truth);
+  assert.deepEqual(ordinary.adjusted, [60]);
+  truth[60] = "r";
+  const promoted = scored(truth);
+  assert.deepEqual(inferDuolingoPosition(promoted)?.squares, truth);
+  promoted[60] = { piece: "r", scores: { r: 0.07, q: 0.2 } };
+  assert.deepEqual(inferDuolingoPosition(promoted)?.promotionReview, [60]);
+});

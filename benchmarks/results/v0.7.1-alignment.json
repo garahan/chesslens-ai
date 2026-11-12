@@ -1,0 +1,12 @@
+{
+  "version": "0.7.1",
+  "fixture": "24 existing nonempty numerical reference signatures, each translated by -1/0/+1 pixel on both axes",
+  "baselineClassifier": "0.6.1 and 0.7.0 share the same unaligned classifier",
+  "cases": 216,
+  "baselineCorrect": 161,
+  "alignedCorrect": 216,
+  "queenRookCases": 72,
+  "baselineQueenRookCorrect": 41,
+  "alignedQueenRookCorrect": 72,
+  "warning": "Synthetic transformations of existing reference data; this is an alignment regression, not independent screenshot accuracy."
+}

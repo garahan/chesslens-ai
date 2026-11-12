@@ -1,10 +1,24 @@
-import { materialErrors } from "./position.ts";
+import { materialErrors, promotionRequirements } from "./position.ts";
 export type TileScores = { scores: Record<string, number>; piece: string };
+// A weak material prior, in the same units as a single tile's visual distance.
+// Clear promoted pieces stay possible; close ordinary alternatives win over
+// explanations requiring an unseen promotion. This is not a hard piece cap.
+const promotionCost = (squares: string[]) =>
+  promotionRequirements(squares).reduce(
+    (sum, row) => sum + row.minimum * 0.055,
+    0,
+  );
 /** Bounded search over visually close labels; constraints never create a missing piece. */
 export function inferDuolingoPosition(
   tiles: TileScores[],
   beamWidth = 128,
-): { squares: string[]; adjusted: number[]; cost: number } | null {
+): {
+  squares: string[];
+  adjusted: number[];
+  cost: number;
+  visualCost: number;
+  promotionReview: number[];
+} | null {
   if (tiles.length !== 64) throw new Error("Expected 64 tile scores");
   const choices = tiles.map((tile, index) => {
     const ranked = Object.entries(tile.scores)
@@ -30,7 +44,7 @@ export function inferDuolingoPosition(
           (piece === piece.toUpperCase()) === (best === best.toUpperCase())),
     );
     if (score < 0.025 && margin > 0.025) return [{ piece: best, cost: score }];
-    return top.slice(0, 4).map(([piece, cost]) => ({ piece, cost }));
+    return top.slice(0, 6).map(([piece, cost]) => ({ piece, cost }));
   });
   if (choices.some((options) => options.length === 0)) return null;
   const noCaptures =
@@ -53,7 +67,9 @@ export function inferDuolingoPosition(
         choices[b][0].cost -
         (choices[a][1].cost - choices[a][0].cost),
   );
-  let beam = [{ squares, cost }];
+  let beam = [
+    { squares, visualCost: cost, cost: cost + promotionCost(squares) },
+  ];
   for (let offset = 0; offset < variable.length; offset++) {
     const index = variable[offset],
       remaining = variable.slice(offset + 1);
@@ -74,7 +90,12 @@ export function inferDuolingoPosition(
           (!canStillBlack && !proposed.includes("k"))
         )
           continue;
-        next.push({ squares: proposed, cost: state.cost + choice.cost });
+        const visualCost = state.visualCost + choice.cost;
+        next.push({
+          squares: proposed,
+          visualCost,
+          cost: visualCost + promotionCost(proposed),
+        });
       }
     next.sort((a, b) => a.cost - b.cost);
     beam = next.slice(0, beamWidth);
@@ -86,6 +107,26 @@ export function inferDuolingoPosition(
   if (!best) return null;
   return {
     ...best,
+    promotionReview: [
+      ...new Set(
+        promotionRequirements(best.squares).flatMap((row) => row.indices),
+      ),
+    ].filter((index) => {
+      const piece = best.squares[index],
+        value = tiles[index].scores[piece];
+      const alternative = Math.min(
+        ...Object.entries(tiles[index].scores)
+          .filter(
+            ([other]) =>
+              other !== piece &&
+              other !== "." &&
+              (other === other.toUpperCase()) ===
+                (piece === piece.toUpperCase()),
+          )
+          .map(([, score]) => score),
+      );
+      return value > 0.05 || alternative - value < 0.025;
+    }),
     adjusted: best.squares.flatMap((piece, index) =>
       piece !== tiles[index].piece ? [index] : [],
     ),

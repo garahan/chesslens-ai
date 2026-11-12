@@ -39,7 +39,11 @@ export type DuolingoResult = RecognitionExtras & {
   uncertainSquares: string[];
 };
 
-type Prototype = { piece: string; values: Float32Array; color: number[] };
+type Prototype = {
+  piece: string;
+  variants: { values: Float32Array; penalty: number }[];
+  color: number[];
+};
 const prototypes: Prototype[] = duolingoSignatures
   .trim()
   .split("\n")
@@ -47,7 +51,20 @@ const prototypes: Prototype[] = duolingoSignatures
     const [piece, signature, rgb] = line.split("|");
     return {
       piece: piece === "-" ? "." : piece,
-      values: Float32Array.from(signature, (ch) => Number(ch) / 9),
+      // A one-pixel offset at this resolution previously turned queens into rooks.
+      // Align each reference before comparing silhouettes; retain a small motion cost.
+      variants: [-1, 0, 1].flatMap((dy) =>
+        [-1, 0, 1].map((dx) => ({
+          values: Float32Array.from(signature, (_, index) => {
+            const x = (index % 12) - dx,
+              y = Math.floor(index / 12) - dy;
+            return x >= 0 && x < 12 && y >= 0 && y < 12
+              ? Number(signature[y * 12 + x]) / 9
+              : 0;
+          }),
+          penalty: (Math.abs(dx) + Math.abs(dy)) * 0.007,
+        })),
+      ),
       color: rgb.split(",").map(Number),
     };
   });
@@ -139,16 +156,20 @@ export function feature(image: ImageData, row: number, col: number) {
 export function classify(mask: Float32Array, color: number[]) {
   const candidates = new Map<string, number>();
   for (const prototype of prototypes) {
-    let difference = 0;
-    for (let i = 0; i < 144; i++)
-      difference += Math.abs(mask[i] - prototype.values[i]);
+    let shape = Infinity;
+    for (const variant of prototype.variants) {
+      let difference = 0;
+      for (let i = 0; i < 144; i++)
+        difference += Math.abs(mask[i] - variant.values[i]);
+      shape = Math.min(shape, difference / 144 + variant.penalty);
+    }
     const chroma =
       Math.hypot(
         color[0] - prototype.color[0],
         color[1] - prototype.color[1],
         color[2] - prototype.color[2],
       ) / 255;
-    const distance = difference / 144 + 0.22 * chroma;
+    const distance = shape + 0.22 * chroma;
     candidates.set(
       prototype.piece,
       Math.min(candidates.get(prototype.piece) ?? Infinity, distance),
@@ -276,6 +297,7 @@ export async function recognizeDuolingoScreenshot(
     secondary: ReturnType<typeof secondRead>[];
     personal: boolean[];
     adjusted: number[];
+    promotionReview: number[];
     objective: number;
     valid: boolean;
     temporal?: TemporalMatch;
@@ -387,8 +409,13 @@ export async function recognizeDuolingoScreenshot(
         squares = orientation === "black" ? expanded.reverse() : expanded;
       }
     }
-    const visualCost = occupied.length
-      ? occupied.reduce((sum, hit) => sum + hit.score, 0) / occupied.length
+    const chosenCosts = squares.flatMap((piece, index) =>
+      piece !== "." ? [hits[index].scores[piece]] : [],
+    );
+    const visualCost = chosenCosts.length
+      ? (chosenCosts.reduce((sum, cost) => sum + cost, 0) +
+          (temporal ? 0 : inferred ? inferred.cost - inferred.visualCost : 0)) /
+        chosenCosts.length
       : 1;
     const valid = !!(inferred || temporal) && !unfamiliar;
     const objective =
@@ -411,6 +438,7 @@ export async function recognizeDuolingoScreenshot(
       secondary,
       personal,
       adjusted: inferred?.adjusted || [],
+      promotionReview: temporal ? [] : inferred?.promotionReview || [],
       objective,
       valid,
       temporal,
@@ -453,7 +481,10 @@ export async function recognizeDuolingoScreenshot(
     const modelDisagrees =
       best.secondary[index].piece !== hit.piece && hit.uncertain;
     return !best.temporal &&
-      (hit.uncertain || best.adjusted.includes(index) || modelDisagrees)
+      (hit.uncertain ||
+        best.adjusted.includes(index) ||
+        best.promotionReview.includes(index) ||
+        modelDisagrees)
       ? [key(index)]
       : [];
   });
@@ -461,6 +492,7 @@ export async function recognizeDuolingoScreenshot(
   const normalized =
     best.orientation === "black" ? [...best.squares].reverse() : best.squares;
   return {
+    reviewRequiredSquares: best.promotionReview.map(key),
     boardCrop: best.crop,
     squares: normalized,
     orientation: best.orientation,
