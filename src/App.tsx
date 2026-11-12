@@ -1,6 +1,7 @@
 import {
   replayLine,
   statusOfLine,
+  ruleStatus,
   savedGame,
   saveGame,
   uciOf,
@@ -9,6 +10,8 @@ import {
   type ClaimReason,
 } from "./rules";
 import { RecognitionSettings } from "./components/settings/RecognitionSettings";
+import { playSound } from "./sound";
+import { SoundSettings } from "./components/inputs/SoundControls";
 import { validateAnalysisPosition } from "./position";
 import { UpdateButton } from "./components/settings/UpdateButton";
 import { AppearanceSettings } from "./components/settings/AppearanceSettings";
@@ -148,6 +151,19 @@ export default function App() {
     if (positionStatus.terminal) return;
     const next = replayLine(line, index);
     next.move(m);
+    playSound(
+      ruleStatus(next).terminal
+        ? "finish"
+        : next.isCheck()
+          ? "check"
+          : m.promotion
+            ? "promote"
+            : m.captured
+              ? "capture"
+              : /[kq]/.test(m.flags)
+                ? "castle"
+                : "move",
+    );
     setLine({
       rootFen: line.rootFen,
       moves: [...line.moves.slice(0, index), uciOf(m)],
@@ -200,10 +216,12 @@ export default function App() {
     if (!f) return;
     if (!f.type.startsWith("image/")) {
       setError("Choose an image file.");
+      playSound("error");
       return;
     }
     if (f.size > 12 * 1024 * 1024) {
       setError("That image is too big. Choose one under 12 MB.");
+      playSound("error");
       return;
     }
     const request = ++scanRequest.current;
@@ -284,6 +302,7 @@ export default function App() {
   return (
     <AppShell>
       <AppHeader
+        home={mode === "home"}
         onBack={() => setMode("home")}
         onMore={() => setSettings(true)}
       />
@@ -337,6 +356,7 @@ export default function App() {
               moves,
               bestMove:
                 engineOn && !positionStatus.terminal ? best?.uci[0] : undefined,
+              lastMove: index ? line.moves[index - 1] : undefined,
               onSquare: click,
             }}
             navigation={{
@@ -452,6 +472,7 @@ export default function App() {
                 <option value="infinite">∞ Infinite</option>
               </select>
             </label>
+            <SoundSettings />
             <AppearanceSettings />
             <RecognitionSettings
               fen={fen}
@@ -494,8 +515,8 @@ export default function App() {
                 download to free up space, tap Retry to get it back.
               </p>
             </div>
-            <p>
-              ChessLens AI 0.9.1 · Stockfish 19
+            <p className="build-info">
+              ChessLens AI 0.10.0 · Stockfish 19
               <br />
               Your screenshots stay on your device.
             </p>

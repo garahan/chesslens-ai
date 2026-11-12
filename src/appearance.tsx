@@ -72,10 +72,10 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     meta?.setAttribute(
       "content",
       theme === "light"
-        ? "#292d27"
+        ? "#f5f4ef"
         : theme === "studio"
-          ? "#252526"
-          : "#101611",
+          ? "#1b1e24"
+          : "#141c18",
     );
     try {
       localStorage.setItem(

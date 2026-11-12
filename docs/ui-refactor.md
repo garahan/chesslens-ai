@@ -4,11 +4,19 @@ The app uses Import → Review → Analyze. `src/App.tsx` owns screen selection,
 
 ## Compact phone layout
 
-The header is 48 CSS pixels plus the system safe area. It has Home, branding, and tools; there is no app Share button. The board is first, with move navigation and one-tap White/Black turn controls directly below. Analyze is beside the turn buttons. Image, Camera, and Tools stay in a bottom dock, with space reserved so they do not cover the board or analysis. Common controls have at least 44px tap targets; board squares scale with the board. The board adapts to viewport height as Safari's browser controls reduce available space.
+The header is 52 CSS pixels plus the system safe area. It has branding, a sound toggle, settings, and a Home button outside the home screen; there is no app Share button. The board and move navigation share one card, with one-tap White/Black turn controls directly below. Analyze is beside the turn buttons. Image, Camera, and Tools stay in a floating bottom dock, with space reserved so they do not cover the board or analysis. Common controls have at least 44px tap targets; board squares scale with the board. The board adapts to viewport height as Safari's browser controls reduce available space.
 
 FEN, history, castling, and scanner diagnostics are secondary expandable tools. Tapping a square opens a bottom correction sheet with the original tile and a piece picker. One piece tap applies the correction and closes the sheet. There is no verification checkbox or required uncertainty-approval step. A valid placement and explicit turn are required; uncertainty remains visible as useful information.
 
-A shared original SVG set renders pieces in analysis, review, correction controls, promotion, and home artwork. Ivory/plum pieces and lavender squares match the purple header. Source-image pixels and recognition features are independent of display styling.
+A shared original SVG set renders pieces in analysis, review, correction controls, promotion, and home artwork. Classic cream/brown squares and ivory/charcoal pieces sit in a warm neutral and forest-green interface; Dark and Studio use the same layout with their own surface tokens. Source-image pixels and recognition features are independent of display styling.
+
+## Version 0.10: visual polish and sounds
+
+Component styles are consolidated into one layout sheet with theme-only color tokens. The home artwork uses the same pieces and board colors as the app. Disclosure rows, forms, navigation, cards, and bottom sheets share consistent borders, spacing, and corner sizes. The board highlights the last played move; uncertain tiles and checked kings remain distinct. Correction palettes keep six White pieces on one row, six Black pieces on the next, and a full-width Empty square action. The build number lives in settings.
+
+Web Audio synthesizes quiet tap, move, capture, castling, check, promotion, game-end, scan, correction and error cues locally. There are no sound downloads and no microphone access. The first trusted pointer or keyboard gesture unlocks audio; loading the page does not. Header and settings mute controls share a persisted preference. Muting stops scheduled tones immediately, and hidden pages suppress playback. Unsupported or blocked audio does not interrupt chess. Device mute settings and browser audio policies still apply; physical iPhone audio testing remains outstanding.
+
+`tests/sound.test.mjs` covers lazy initialization, saved mute state, immediate stopping, subscriptions, background suppression and unavailable APIs/storage. `tests/design_sound_browser.py` uses real Chromium AudioContext nodes to check move tones, synchronized controls, preview, resume after suspension, and silence while muted/backgrounded. It checks all three app themes at five portrait sizes, including control sizes and engine/dock overlap. The production offline test checks sound generation after a cold offline reopen.
 
 ## Offline and home-screen installation
 

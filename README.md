@@ -17,6 +17,7 @@ If the board looks cropped or shifted, try **Adjust board crop**. You can also s
 - A board that’s easy to see and buttons that are easy to reach on a phone.
 - Stockfish 19 analysis, with a depth limit or **∞** if you want to keep it thinking.
 - Different board colors, piece sets, and light, dark, or Studio themes.
+- Soft sounds for moves, captures, checks, and scans. The speaker button at the top mutes them, and there’s a preview in settings.
 - Offline scanning and analysis, with your position and moves saved on your device.
 - Optional learning from your corrections and tracking between screenshots of the same game.
 

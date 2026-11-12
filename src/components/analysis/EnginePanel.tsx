@@ -27,7 +27,11 @@ export function EnginePanel({
   terminal?: boolean;
 }) {
   return (
-    <section className="engine-panel" aria-label="Engine analysis">
+    <section
+      className="engine-panel"
+      aria-label="Engine analysis"
+      data-live={enabled && !terminal}
+    >
       <div className="engine-header">
         <span className="eval-badge">{evaluation(variations[0])}</span>
         <div className="engine-title">

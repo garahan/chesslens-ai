@@ -35,18 +35,22 @@ with sync_playwright() as p:
  page.set_viewport_size({'width':402,'height':874})
  page.screenshot(path=str(ROOT/'artifacts/mobile-compact.png'))
  page.locator('.board').screenshot(path=str(ROOT/'artifacts/offline-general-input.png'))
+ page.get_by_role('button',name='Mute sounds',exact=True).click()
  # Simulate a browser restart without a connection, retaining local device storage.
  context.set_offline(True);page.close();page=context.new_page();page.on('pageerror',lambda e:errors.append(str(e)));page.goto(BASE)
  page.get_by_text('Offline · ready',exact=True).wait_for(timeout=30000)
  assert page.locator('html').get_attribute('data-theme')=='dark'
  assert page.locator('html').get_attribute('data-board')=='green'
  assert page.locator('html').get_attribute('data-pieces')=='modern'
+ page.evaluate("""()=>{window.offlineTones=0;const make=AudioContext.prototype.createOscillator;AudioContext.prototype.createOscillator=function(){window.offlineTones++;return make.call(this)}}""")
+ page.get_by_role('button',name='Unmute sounds',exact=True).click()
  page.locator('.recent-card').click()
  page.get_by_text('Position tools & history',exact=True).click()
  assert ' b ' in page.locator('#fen-input').input_value()
  assert page.evaluate("JSON.parse(localStorage.getItem('chesslens-line-v1')).line.moves")==['e2e4']
  page.get_by_role('button',name='Analyze',exact=True).click()
  page.locator('.variation').first.wait_for(timeout=60000)
+ assert page.evaluate('offlineTones')>0
  # The general ONNX path must execute offline, not merely cache the app shell.
  page.locator('input[type=file]').first.set_input_files(str(ROOT/'artifacts/offline-general-input.png'))
  page.get_by_role('combobox',name='Scanner type',exact=True).select_option('general')
@@ -92,5 +96,5 @@ with sync_playwright() as p:
  page.get_by_role('button',name='Retry',exact=True).click()
  page.get_by_text('Ready offline',exact=True).wait_for(timeout=120000)
  assert not errors,errors
- print(json.dumps({'offline':['cold reopen','saved position','Stockfish','ONNX scanner','Duolingo 64/64','foreground reconstruction','learning and Undo','game tracking','missing-cache detection and repair'],'mobile':boxes,'errors':errors}))
+ print(json.dumps({'offline':['cold reopen','saved position','Stockfish','sounds and mute persistence','ONNX scanner','Duolingo 64/64','foreground reconstruction','learning and Undo','game tracking','missing-cache detection and repair'],'mobile':boxes,'errors':errors}))
  browser.close()

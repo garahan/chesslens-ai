@@ -6,6 +6,7 @@ export function ChessBoardCard({
   selected,
   moves,
   bestMove,
+  lastMove,
   onSquare,
 }: {
   board: Chess;
@@ -13,6 +14,7 @@ export function ChessBoardCard({
   selected: string | null;
   moves: Move[];
   bestMove?: string;
+  lastMove?: string;
   onSquare: (square: string) => void;
 }) {
   const files = "abcdefgh",
@@ -43,8 +45,9 @@ export function ChessBoardCard({
                 key={sq}
                 role="gridcell"
                 aria-label={`${sq} ${piece ? `${piece.color === "w" ? "white" : "black"} ${piece.type}` : "empty"}`}
+                aria-selected={selected === sq}
                 onClick={() => onSquare(sq)}
-                className={`square ${(files.indexOf(sq[0]) + Number(sq[1])) % 2 === 0 ? "dark" : "light"} ${selected === sq ? "selected" : ""} ${check ? "in-check" : ""}`}
+                className={`square ${(files.indexOf(sq[0]) + Number(sq[1])) % 2 === 0 ? "dark" : "light"} ${selected === sq ? "selected" : ""} ${check ? "in-check" : ""} ${lastMove && [lastMove.slice(0, 2), lastMove.slice(2, 4)].includes(sq) ? "last-move" : ""}`}
               >
                 {piece && (
                   <ChessPiece

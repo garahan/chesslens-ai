@@ -1,4 +1,5 @@
 import type { GameLine } from "./rules";
+import { playSound } from "./sound";
 import { RecognitionReport } from "./components/scanner/RecognitionReport";
 import {
   RecognitionFailure,
@@ -163,6 +164,7 @@ export function ScanEditor({
       setPieces(detected.squares);
       setOrientation(detected.orientation);
       setResult(detected);
+      playSound("scan");
       setManuallyEdited(false);
       setReport(detected.diagnostics || null);
       setCastling(
@@ -183,6 +185,7 @@ export function ScanEditor({
     } catch (e) {
       if (request !== requestRef.current) return;
       if (e instanceof RecognitionFailure) setReport(e.diagnostics);
+      playSound("error");
       setError(
         e instanceof Error ? e.message : "Couldn’t scan that image. Try again.",
       );
@@ -202,6 +205,7 @@ export function ScanEditor({
     };
   }, [detect]);
   const applyCorrection = (square: string, piece: string) => {
+    playSound("place");
     const index = (8 - Number(square[1])) * 8 + "abcdefgh".indexOf(square[0]);
     const sample = result?.learningTiles?.[square];
     const learning = sample ? learnCorrection(sample, piece) : null;
@@ -631,7 +635,11 @@ export function ScanEditor({
                       }
                       onClick={() => applyCorrection(focusedSquare, piece)}
                     >
-                      {piece === "." ? "×" : <ChessPiece piece={piece} />}
+                      {piece === "." ? (
+                        "× Empty square"
+                      ) : (
+                        <ChessPiece piece={piece} />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -662,7 +670,7 @@ export function ScanEditor({
                     className={selected === p ? "chosen" : ""}
                     onClick={() => setSelected(p)}
                   >
-                    {p === "." ? "×" : <ChessPiece piece={p} />}
+                    {p === "." ? "× Empty square" : <ChessPiece piece={p} />}
                   </button>
                 ))}
               </div>

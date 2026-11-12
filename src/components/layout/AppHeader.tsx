@@ -1,36 +1,41 @@
-import { ArrowLeft, MoreHorizontal, ScanLine } from "lucide-react";
+import { ArrowLeft, SlidersHorizontal, ScanLine } from "lucide-react";
+import { SoundButton } from "../inputs/SoundControls";
 export function AppHeader({
   onBack,
   onMore,
+  home,
 }: {
   onBack: () => void;
   onMore: () => void;
+  home?: boolean;
 }) {
   return (
     <header className="app-header">
       <div className="header-inner">
-        <button
-          className="icon-button"
-          aria-label="Go to home"
-          onClick={onBack}
-        >
-          <ArrowLeft size={19} />
-        </button>
+        {!home && (
+          <button
+            className="icon-button"
+            aria-label="Go to home"
+            onClick={onBack}
+          >
+            <ArrowLeft size={19} />
+          </button>
+        )}
         <div className="brand">
-          <ScanLine size={21} />
+          <span className="logo">
+            <ScanLine size={20} />
+          </span>
           <h1>
             ChessLens <span>AI</span>
           </h1>
         </div>
-        <span className="build-badge" aria-label="App version 0.9.1">
-          0.9.1
-        </span>
+        <SoundButton />
         <button
           className="icon-button"
           aria-label="Open settings"
           onClick={onMore}
         >
-          <MoreHorizontal size={22} />
+          <SlidersHorizontal size={19} />
         </button>
       </div>
     </header>

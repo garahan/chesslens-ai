@@ -2,10 +2,76 @@ import { ChessPiece } from "../components/board/ChessPiece";
 import {
   Camera,
   ImagePlus,
-  ScanLine,
   ArrowRight,
   ShieldCheck,
+  Check,
 } from "lucide-react";
+const preview = [
+  ".",
+  ".",
+  "r",
+  ".",
+  ".",
+  "k",
+  ".",
+  ".",
+  "p",
+  "p",
+  ".",
+  ".",
+  ".",
+  "p",
+  "p",
+  "p",
+  ".",
+  ".",
+  "n",
+  ".",
+  ".",
+  ".",
+  ".",
+  ".",
+  ".",
+  ".",
+  ".",
+  "p",
+  ".",
+  ".",
+  ".",
+  ".",
+  ".",
+  ".",
+  ".",
+  "P",
+  ".",
+  ".",
+  ".",
+  ".",
+  ".",
+  ".",
+  "P",
+  ".",
+  ".",
+  "N",
+  ".",
+  ".",
+  "P",
+  "P",
+  ".",
+  ".",
+  ".",
+  "P",
+  "P",
+  "P",
+  "R",
+  ".",
+  ".",
+  ".",
+  "K",
+  ".",
+  ".",
+  "R",
+];
 export function HomeScreen({
   onGallery,
   onCamera,
@@ -22,14 +88,38 @@ export function HomeScreen({
   return (
     <section className="home-screen">
       <div className="upload-card">
-        <div className="scan-illustration">
-          <ScanLine size={68} strokeWidth={1.2} />
-          <span>
-            <ChessPiece piece="n" />
+        <div className="home-art" aria-hidden="true">
+          <div className="hero-board">
+            {preview.map((piece, i) => (
+              <div
+                key={i}
+                className={(Math.floor(i / 8) + (i % 8)) % 2 ? "dark" : "light"}
+              >
+                {piece !== "." && <ChessPiece piece={piece} />}
+              </div>
+            ))}
+          </div>
+          <span className="hero-scan-corner corner-top" />
+          <span className="hero-scan-corner corner-bottom" />
+          <span className="hero-ready">
+            <Check size={14} /> Ready for your next move
           </span>
         </div>
         <h3>Start with a screenshot</h3>
         <p>Pick a screenshot, check the pieces, and find your next move.</p>
+        <div className="home-steps" aria-label="How it works">
+          <span>
+            <b>1</b> Import
+          </span>
+          <i />
+          <span>
+            <b>2</b> Review
+          </span>
+          <i />
+          <span>
+            <b>3</b> Analyze
+          </span>
+        </div>
         <button className="primary" onClick={onGallery}>
           <ImagePlus size={20} />
           Choose image
