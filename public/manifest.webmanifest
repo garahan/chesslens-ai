@@ -1,1 +1,25 @@
-{"name":"ChessLens AI","short_name":"ChessLens","description":"Chess screenshot analysis","start_url":"/","scope":"/","display":"standalone","background_color":"#0d111b","theme_color":"#0d111b","icons":[{"src":"/icons/icon.svg","sizes":"any","type":"image/svg+xml"},{"src":"/icons/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"maskable"}]}
+{
+  "name": "ChessLens AI",
+  "short_name": "ChessLens",
+  "description": "Turn a chess screenshot into a board you can explore, even offline.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f4ef",
+  "theme_color": "#f5f4ef",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "id": "/"
+}

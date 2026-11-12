@@ -1,11 +1,11 @@
 {
   "name": "chesslens-ai",
-  "version": "0.4.0",
+  "version": "0.14.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "npm run prepare:engine && tsc --noEmit && vite build",
+    "build": "npm run prepare:engine && tsc --noEmit && vite build && node scripts/build-offline.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "prepare:engine": "node scripts/copy-engine.mjs && node scripts/copy-scanner.mjs",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",

@@ -4,3 +4,10 @@ dist/
 .env*
 !.env.example
 public/engine/
+
+public/models/
+public/ort/
+artifacts/
+
+benchmarks/raw/
+__pycache__/

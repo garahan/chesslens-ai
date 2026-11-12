@@ -1,0 +1,160 @@
+{
+  "label": "v0.6.1",
+  "sourceGroups": 1,
+  "independentTestCases": 0,
+  "independentExactAccuracy": null,
+  "provenanceComplete": false,
+  "exactBoards": 6,
+  "cases": 6,
+  "squareAccuracy": 1.0,
+  "rejections": 0,
+  "latencyMedianMs": 41.799999999813735,
+  "latencyP95Ms": 125,
+  "confusionMatrix": {
+    ".": {
+      ".": 264
+    },
+    "r": {
+      "r": 6
+    },
+    "k": {
+      "k": 6
+    },
+    "p": {
+      "p": 36
+    },
+    "n": {
+      "n": 6
+    },
+    "P": {
+      "P": 36
+    },
+    "N": {
+      "N": 12
+    },
+    "R": {
+      "R": 12
+    },
+    "K": {
+      "K": 6
+    }
+  },
+  "results": [
+    {
+      "variant": "original",
+      "ms": 125,
+      "expectedCrop": {
+        "x": 0,
+        "y": 428.3671875,
+        "size": 588
+      },
+      "sourceId": "available-original",
+      "sourceGroup": "decfda492b3b938af31cdc64b8c2d376b523358f45ce8f77f41b5468a903afc6",
+      "split": "regression",
+      "inTrainingGroup": true,
+      "correctSquares": 64,
+      "exact": true,
+      "accepted": true,
+      "source": "Duolingo-specific recognizer",
+      "uncertain": 0,
+      "cropIoU": 1.0
+    },
+    {
+      "variant": "jpeg-small",
+      "ms": 79.40000000037253,
+      "expectedCrop": {
+        "x": 0,
+        "y": 267.0203125,
+        "size": 352.8
+      },
+      "sourceId": "available-original",
+      "sourceGroup": "decfda492b3b938af31cdc64b8c2d376b523358f45ce8f77f41b5468a903afc6",
+      "split": "regression",
+      "inTrainingGroup": true,
+      "correctSquares": 64,
+      "exact": true,
+      "accepted": true,
+      "source": "Duolingo-specific recognizer",
+      "uncertain": 0,
+      "cropIoU": 0.9921914456427936
+    },
+    {
+      "variant": "thin-frame",
+      "ms": 43.299999999813735,
+      "expectedCrop": {
+        "x": 4,
+        "y": 438.3671875,
+        "size": 588
+      },
+      "sourceId": "available-original",
+      "sourceGroup": "decfda492b3b938af31cdc64b8c2d376b523358f45ce8f77f41b5468a903afc6",
+      "split": "regression",
+      "inTrainingGroup": true,
+      "correctSquares": 64,
+      "exact": true,
+      "accepted": true,
+      "source": "Duolingo-specific recognizer",
+      "uncertain": 0,
+      "cropIoU": 0.9932417894976417
+    },
+    {
+      "variant": "white-frame",
+      "ms": 40.299999999813735,
+      "expectedCrop": {
+        "x": 16,
+        "y": 438.3671875,
+        "size": 588
+      },
+      "sourceId": "available-original",
+      "sourceGroup": "decfda492b3b938af31cdc64b8c2d376b523358f45ce8f77f41b5468a903afc6",
+      "split": "regression",
+      "inTrainingGroup": true,
+      "correctSquares": 64,
+      "exact": true,
+      "accepted": true,
+      "source": "Duolingo-specific recognizer",
+      "uncertain": 0,
+      "cropIoU": 0.9976098798254245
+    },
+    {
+      "variant": "asymmetric",
+      "ms": 37.89999999944121,
+      "expectedCrop": {
+        "x": 34,
+        "y": 438.3671875,
+        "size": 588
+      },
+      "sourceId": "available-original",
+      "sourceGroup": "decfda492b3b938af31cdc64b8c2d376b523358f45ce8f77f41b5468a903afc6",
+      "split": "regression",
+      "inTrainingGroup": true,
+      "correctSquares": 64,
+      "exact": true,
+      "accepted": true,
+      "source": "Duolingo-specific recognizer",
+      "uncertain": 0,
+      "cropIoU": 0.9972950408185904
+    },
+    {
+      "variant": "large-margin",
+      "ms": 36.10000000055879,
+      "expectedCrop": {
+        "x": 90,
+        "y": 438.3671875,
+        "size": 588
+      },
+      "sourceId": "available-original",
+      "sourceGroup": "decfda492b3b938af31cdc64b8c2d376b523358f45ce8f77f41b5468a903afc6",
+      "split": "regression",
+      "inTrainingGroup": true,
+      "correctSquares": 64,
+      "exact": true,
+      "accepted": true,
+      "source": "Duolingo-specific recognizer",
+      "uncertain": 0,
+      "cropIoU": 0.9987518423603458
+    }
+  ],
+  "warning": "Variants of one source are regression cases, not independent accuracy evidence.",
+  "runtime": "Desktop Chromium / Vite development server; not a physical iPhone"
+}
