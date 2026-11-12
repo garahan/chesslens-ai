@@ -1,3 +1,10 @@
+import { RecognitionReport } from "./components/scanner/RecognitionReport";
+import {
+  RecognitionFailure,
+  type RecognitionDiagnostics,
+} from "./recognition/types";
+import { learnCorrection, undoLearning } from "./recognition/learning";
+import { advanceTracking } from "./recognition/tracking";
 import { BoardCropper } from "./components/scanner/BoardCropper";
 import type { BoardCrop } from "./duolingo";
 import { Modal } from "./components/layout/Modal";
@@ -52,6 +59,14 @@ export function ScanEditor({
   file: File | null;
   onAnalyze: (fen: string) => void;
 }) {
+  const [report, setReport] = useState<RecognitionDiagnostics | null>(null);
+  const [lastEdit, setLastEdit] = useState<{
+    index: number;
+    before: string;
+    uncertain: boolean;
+    learning: ReturnType<typeof learnCorrection>;
+  } | null>(null);
+  const [notice, setNotice] = useState("");
   const [cropOpen, setCropOpen] = useState(false);
   const [crop, setCrop] = useState<BoardCrop | undefined>();
   const [scannerMode, setScannerMode] = useState<
@@ -86,6 +101,9 @@ export function ScanEditor({
       return;
     }
     setScanning(true);
+    setReport(null);
+    setLastEdit(null);
+    setNotice("");
     setManuallyEdited(false);
     setTurnConfirmed(false);
     setFocusedSquare(null);
@@ -104,11 +122,20 @@ export function ScanEditor({
       setOrientation(detected.orientation);
       setResult(detected);
       setManuallyEdited(false);
-      setCastling([]);
+      setReport(detected.diagnostics || null);
+      setCastling(
+        detected.temporal
+          ? detected.temporal.fen.split(" ")[2].replace("-", "").split("")
+          : [],
+      );
       setUncertain(detected.uncertainSquares || []);
-      setTurnConfirmed(false);
+      if (detected.temporal) {
+        setTurn(detected.temporal.fen.split(" ")[1] as "w" | "b");
+        setTurnConfirmed(true);
+      } else setTurnConfirmed(false);
     } catch (e) {
       if (request !== requestRef.current) return;
+      if (e instanceof RecognitionFailure) setReport(e.diagnostics);
       setError(
         `Scanner could not run: ${e instanceof Error ? e.message : "unknown error"}`,
       );
@@ -127,6 +154,44 @@ export function ScanEditor({
       requestRef.current++;
     };
   }, [detect]);
+  const applyCorrection = (square: string, piece: string) => {
+    const index = (8 - Number(square[1])) * 8 + "abcdefgh".indexOf(square[0]);
+    const sample = result?.learningTiles?.[square];
+    const learning = sample ? learnCorrection(sample, piece) : null;
+    setLastEdit({
+      index,
+      before: pieces[index],
+      uncertain: uncertain.includes(square),
+      learning,
+    });
+    setPieces((old) => old.map((value, i) => (i === index ? piece : value)));
+    setUncertain((old) => old.filter((value) => value !== square));
+    setManuallyEdited(true);
+    setFocusedSquare(null);
+    setNotice(
+      learning ? "Correction learned on this device." : "Piece updated.",
+    );
+  };
+  const undoEdit = () => {
+    if (!lastEdit) return;
+    setPieces((old) =>
+      old.map((value, index) =>
+        index === lastEdit.index ? lastEdit.before : value,
+      ),
+    );
+    if (lastEdit.uncertain) {
+      const square =
+        "abcdefgh"[lastEdit.index % 8] + (8 - Math.floor(lastEdit.index / 8));
+      setUncertain((old) => (old.includes(square) ? old : [...old, square]));
+    }
+    const restored = !lastEdit.learning || undoLearning(lastEdit.learning);
+    setNotice(
+      restored
+        ? "Correction undone."
+        : "Board restored; saved learning changed in another tab.",
+    );
+    setLastEdit(null);
+  };
   const analyze = () => {
     try {
       if (!turnConfirmed) throw Error("Select whose turn it is");
@@ -135,7 +200,16 @@ export function ScanEditor({
       const board = new Chess(fen);
       if (!board.isGameOver() && !board.moves().length)
         throw Error("No legal moves");
-      onAnalyze(board.fen());
+      const tracked = result?.temporal;
+      const fields = fen.split(" "),
+        historyFields = tracked?.fen.split(" ");
+      const usesHistory =
+        tracked &&
+        historyFields &&
+        fields.slice(0, 3).join(" ") === historyFields.slice(0, 3).join(" ");
+      const accepted = usesHistory ? tracked.fen : board.fen();
+      if (usesHistory) advanceTracking(tracked.anchor, accepted);
+      onAnalyze(accepted);
       setError("");
     } catch (e) {
       setError(
@@ -148,12 +222,49 @@ export function ScanEditor({
     (!!result || manuallyEdited) &&
     turnConfirmed &&
     !issues.errors.length;
+  const exportLabels = async () => {
+    if (!file || !result?.boardCrop) return;
+    try {
+      const digest = await crypto.subtle.digest(
+        "SHA-256",
+        await file.arrayBuffer(),
+      );
+      const sourceGroup = Array.from(new Uint8Array(digest), (n) =>
+        n.toString(16).padStart(2, "0"),
+      ).join("");
+      const labels = {
+        version: 1,
+        verified: false,
+        sourceGroup,
+        imageWidth: result.boardCrop.imageWidth,
+        imageHeight: result.boardCrop.imageHeight,
+        placement: fenPlacement(pieces),
+        orientation: result.orientation,
+        crop: result.boardCrop,
+        note: "Proposed labels. Check every square against the original before using as verified training or test data.",
+      };
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(labels, null, 2)], {
+          type: "application/json",
+        }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "chesslens-board-labels.json";
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setNotice(
+        "Could not export labels. Try again from a secure browser connection.",
+      );
+    }
+  };
   return (
     <div className="scaneditor">
       {cropOpen && (
         <BoardCropper
           image={image}
-          initial={crop || result?.boardCrop}
+          initial={crop || result?.boardCrop || report?.selectedCrop}
           onCancel={() => setCropOpen(false)}
           onApply={(bounds) => {
             setCrop(bounds);
@@ -209,13 +320,10 @@ export function ScanEditor({
                         );
                         return;
                       }
-                      setManuallyEdited(true);
-                      setPieces((old) =>
-                        old.map((value, i) => (i === idx ? selected : value)),
+                      applyCorrection(
+                        "abcdefgh"[idx % 8] + (8 - Math.floor(idx / 8)),
+                        selected,
                       );
-                      const name =
-                        "abcdefgh"[idx % 8] + (8 - Math.floor(idx / 8));
-                      setUncertain((old) => old.filter((s) => s !== name));
                     }}
                   >
                     <ChessPiece piece={pieces[idx]} />
@@ -258,6 +366,22 @@ export function ScanEditor({
                 Original screenshot
               </button>
             </div>
+          )}
+          {notice && (
+            <div className="correction-notice" role="status">
+              <span>{notice}</span>
+              {lastEdit && (
+                <button className="text-button" onClick={undoEdit}>
+                  Undo correction
+                </button>
+              )}
+            </div>
+          )}
+          {result?.temporal && (
+            <p className="tracking-match">
+              Game matched: {result.temporal.moves.join(" ") || "same position"}{" "}
+              · turn selected automatically
+            </p>
           )}
           <details
             className="review-card"
@@ -391,6 +515,41 @@ export function ScanEditor({
                     </div>
                   </div>
                 )}
+                {report?.tiles.find(
+                  (tile) => tile.square === focusedSquare,
+                ) && (
+                  <div
+                    className="piece-suggestions"
+                    role="group"
+                    aria-label="Suggested pieces"
+                  >
+                    {report.tiles
+                      .find((tile) => tile.square === focusedSquare)!
+                      .alternatives.map((option) => (
+                        <button
+                          key={option.piece}
+                          aria-label={`Suggested ${option.piece}`}
+                          onClick={() =>
+                            applyCorrection(focusedSquare, option.piece)
+                          }
+                        >
+                          {option.piece === "." ? (
+                            "Empty"
+                          ) : (
+                            <ChessPiece piece={option.piece} />
+                          )}
+                        </button>
+                      ))}
+                  </div>
+                )}
+                {report?.tiles.find(
+                  (tile) => tile.square === focusedSquare && !tile.agreed,
+                ) && (
+                  <p className="reader-policy">
+                    The experimental second reader disagrees. Compare the
+                    original before choosing.
+                  </p>
+                )}
                 <p>Tap a piece to replace this square.</p>
                 <div className="piecepalette">
                   {palette.map((piece) => (
@@ -401,19 +560,7 @@ export function ScanEditor({
                           ? "Set square empty"
                           : `Set square to ${piece}`
                       }
-                      onClick={() => {
-                        const idx =
-                          (8 - Number(focusedSquare[1])) * 8 +
-                          "abcdefgh".indexOf(focusedSquare[0]);
-                        setPieces((old) =>
-                          old.map((p, i) => (i === idx ? piece : p)),
-                        );
-                        setUncertain((old) =>
-                          old.filter((s) => s !== focusedSquare),
-                        );
-                        setManuallyEdited(true);
-                        setFocusedSquare(null);
-                      }}
+                      onClick={() => applyCorrection(focusedSquare, piece)}
                     >
                       {piece === "." ? "×" : <ChessPiece piece={piece} />}
                     </button>
@@ -453,6 +600,8 @@ export function ScanEditor({
               <div className="editoractions">
                 <button
                   onClick={() => {
+                    setLastEdit(null);
+                    setNotice("");
                     setPieces(Array(64).fill("."));
                     setManuallyEdited(true);
                     setUncertain([]);
@@ -462,6 +611,8 @@ export function ScanEditor({
                 </button>
                 <button
                   onClick={() => {
+                    setLastEdit(null);
+                    setNotice("");
                     setPieces([...starting]);
                     setManuallyEdited(true);
                     setUncertain([]);
@@ -471,6 +622,8 @@ export function ScanEditor({
                 </button>
                 <button
                   onClick={() => {
+                    setLastEdit(null);
+                    setNotice("");
                     setManuallyEdited(true);
                     setPieces((old) =>
                       old.map((p) =>
@@ -488,6 +641,12 @@ export function ScanEditor({
               </div>
             </div>
           )}
+          <RecognitionReport
+            report={report}
+            onExportLabels={
+              result?.boardCrop ? () => void exportLabels() : undefined
+            }
+          />
           <details className="source-image">
             <summary>View imported screenshot</summary>
             <img src={image} alt="Imported chess screenshot" />

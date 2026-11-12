@@ -1,3 +1,4 @@
+import { RecognitionSettings } from "./components/settings/RecognitionSettings";
 import { validateAnalysisPosition } from "./position";
 import { UpdateButton } from "./components/settings/UpdateButton";
 import { AppearanceSettings } from "./components/settings/AppearanceSettings";
@@ -400,6 +401,7 @@ export default function App() {
               </select>
             </label>
             <AppearanceSettings />
+            <RecognitionSettings fen={fen} />
             <UpdateButton />
             <button className="secondary" onClick={toggleFavorite}>
               {favorite ? "Remove favorite position" : "Favorite this position"}
@@ -433,7 +435,7 @@ export default function App() {
               </p>
             </div>
             <p>
-              ChessLens AI 0.6.1 · Stockfish 19
+              ChessLens AI 0.7.0 · Stockfish 19
               <br />
               Screenshot recognition runs on your device.
             </p>

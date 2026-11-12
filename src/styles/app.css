@@ -1843,3 +1843,105 @@ summary::marker {
   flex: 1;
   min-width: 130px;
 }
+.recognition-settings {
+  margin: 18px 0;
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+.recognition-settings h3 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.recognition-settings p {
+  font-size: 11px !important;
+  line-height: 1.6 !important;
+  margin: 6px 0 10px !important;
+}
+.recognition-settings > .secondary,
+.tracking-tools > .secondary {
+  width: 100%;
+  min-height: 44px;
+  font-size: 12px;
+}
+.tracking-tools {
+  margin-top: 16px;
+}
+.tracking-tools strong {
+  font-size: 13px;
+}
+.reader-policy {
+  color: var(--color-text-soft);
+}
+.correction-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  background: var(--accent-soft);
+  border-radius: 10px;
+  font-size: 12px;
+  min-height: 44px;
+}
+.tracking-match {
+  font-size: 11px;
+  color: var(--color-text-soft);
+  margin: 0;
+  padding: 4px;
+}
+.recognition-report {
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  overflow: auto;
+}
+.recognition-report > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--color-text-soft);
+}
+.recognition-report p {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.recognition-report table {
+  font-size: 10px;
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+.recognition-report td,
+.recognition-report th {
+  padding: 6px 3px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+.recognition-report button {
+  font-size: 12px;
+  min-height: 44px;
+}
+.piece-suggestions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+.piece-suggestions button {
+  width: 52px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+  font-size: 12px;
+}
+.piece-suggestions .chess-piece {
+  width: 40px;
+  height: 40px;
+}

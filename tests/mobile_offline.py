@@ -13,6 +13,7 @@ with sync_playwright() as p:
  page.get_by_text('Ready offline',exact=True).wait_for(timeout=120000)
  assert page.get_by_role('button',name='Share position').count()==0
  page.get_by_role('button',name='Open settings',exact=True).click()
+ page.get_by_role('switch',name='Learn from corrections',exact=True).click()
  page.get_by_role('button',name='Dark',exact=True).click()
  page.get_by_role('button',name='Green board',exact=True).click()
  page.get_by_role('button',name='modern pieces',exact=True).click()
@@ -63,9 +64,21 @@ with sync_playwright() as p:
  page.screenshot(path=str(ROOT/'artifacts/mobile-edit-sheet.png'))
  page.get_by_role('button',name='Set square to K',exact=True).click()
  assert page.get_by_role('dialog').count()==0
+ page.get_by_text('Correction learned on this device.',exact=True).wait_for()
+ assert page.evaluate("JSON.parse(localStorage.getItem('chesslens-corrections-v1')).samples.length")==1
+ page.get_by_role('button',name='Undo correction',exact=True).click()
+ assert page.evaluate("JSON.parse(localStorage.getItem('chesslens-corrections-v1')).samples.length")==0
  page.get_by_role('button',name='Analyze',exact=True).click()
  page.locator('.variation').first.wait_for(timeout=60000)
  page.screenshot(path=str(ROOT/'artifacts/offline-analysis.png'))
+ page.get_by_role('button',name='Open settings',exact=True).click()
+ page.get_by_role('button',name='Track this position',exact=True).click()
+ page.get_by_role('button',name='Close settings',exact=True).click()
+ page.locator('input[type=file]').first.set_input_files(IMAGE)
+ page.get_by_text('Game matched: same position',exact=False).wait_for(timeout=60000)
+ assert page.get_by_role('button',name='Black to move',exact=True).get_attribute('aria-pressed')=='true'
+ page.get_by_role('button',name='Analyze',exact=True).click()
+ page.locator('.variation').first.wait_for(timeout=60000)
  # A missing asset must not be advertised as offline-ready; Retry repairs it.
  page.evaluate("async()=>{for(const key of await caches.keys())if(key.startsWith('chesslens-'))await(await caches.open(key)).delete('/models/chess-tiles-v2.onnx')}")
  page.reload()
@@ -74,5 +87,5 @@ with sync_playwright() as p:
  page.get_by_role('button',name='Retry',exact=True).click()
  page.get_by_text('Ready offline',exact=True).wait_for(timeout=120000)
  assert not errors,errors
- print(json.dumps({'offline':['cold reopen','saved position','Stockfish','ONNX scanner','Duolingo 64/64','missing-cache detection and repair'],'mobile':boxes,'errors':errors}))
+ print(json.dumps({'offline':['cold reopen','saved position','Stockfish','ONNX scanner','Duolingo 64/64','learning and Undo','game tracking','missing-cache detection and repair'],'mobile':boxes,'errors':errors}))
  browser.close()

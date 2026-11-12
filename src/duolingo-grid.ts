@@ -2,11 +2,12 @@ export type GridBounds = { x: number; y: number; size: number; error: number };
 const LIGHT = [38, 52, 58],
   DARK = [21, 30, 35];
 /** Detect the complete grid even when screenshots contain margins or phone frames. */
-export function locateDuolingoGrid(
+export function locateDuolingoGrids(
   pixels: Uint8ClampedArray,
   width: number,
   height: number,
-): GridBounds | null {
+  limit = 4,
+): GridBounds[] {
   const sample = (x: number, y: number) => {
     const i =
       4 *
@@ -83,7 +84,7 @@ export function locateDuolingoGrid(
       unique.push(candidate);
     if (unique.length === 14) break;
   }
-  let best: GridBounds | null = null;
+  const found: GridBounds[] = [];
   const evaluate = (x: number, y: number, size: number) => {
     if (x < 0 || x + size > width + 0.2 || y < 0 || y + size > height)
       return Infinity;
@@ -146,23 +147,59 @@ export function locateDuolingoGrid(
       if (y > 0 && distance(sample(x + 0.035 * cell, y - 2), LIGHT) < 14)
         continue;
       const error = evaluate(x, y, size);
-      if (error < 14 && (!best || error < best.error))
-        best = { x, y, size, error };
+      if (error < 14) found.push({ x, y, size, error });
     }
   }
-  if (!best) return null;
-  // Refine bounds below the detector's pixel quantization, not by chess guesses.
-  const seed = best as GridBounds;
-  for (const dx of [-1, -0.5, 0, 0.5, 1])
-    for (const ds of [-2, -1, 0, 1, 2])
-      for (const dy of [-1, 0, 1]) {
-        const x = seed.x + dx,
-          y = seed.y + dy,
-          size = seed.size + ds;
-        const error = evaluate(x, y, size);
-        if (error < (best as GridBounds).error) best = { x, y, size, error };
-      }
-  return best;
+  found.sort((a, b) => a.error - b.error);
+  const seeds: GridBounds[] = [];
+  for (const candidate of found) {
+    if (
+      !seeds.some(
+        (p) =>
+          Math.abs(p.x - candidate.x) < 1.5 &&
+          Math.abs(p.y - candidate.y) < 2 &&
+          Math.abs(p.size - candidate.size) < 3,
+      )
+    )
+      seeds.push(candidate);
+    if (seeds.length === Math.max(4, limit)) break;
+  }
+  const refined = seeds
+    .map((seed) => {
+      let best = seed;
+      for (const dx of [-1, -0.5, 0, 0.5, 1])
+        for (const ds of [-2, -1, 0, 1, 2])
+          for (const dy of [-1, 0, 1]) {
+            const x = seed.x + dx,
+              y = seed.y + dy,
+              size = seed.size + ds,
+              error = evaluate(x, y, size);
+            if (error < best.error) best = { x, y, size, error };
+          }
+      return best;
+    })
+    .sort((a, b) => a.error - b.error);
+  const results: GridBounds[] = [];
+  for (const candidate of refined) {
+    if (
+      !results.some(
+        (p) =>
+          Math.abs(p.x - candidate.x) < 0.7 &&
+          Math.abs(p.y - candidate.y) < 0.7 &&
+          Math.abs(p.size - candidate.size) < 1,
+      )
+    )
+      results.push(candidate);
+    if (results.length === limit) break;
+  }
+  return results;
+}
+export function locateDuolingoGrid(
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number,
+): GridBounds | null {
+  return locateDuolingoGrids(pixels, width, height, 1)[0] ?? null;
 }
 export function hasDuolingoPalette(pixels: Uint8ClampedArray): boolean {
   let light = 0,

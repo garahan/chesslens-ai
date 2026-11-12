@@ -1,5 +1,24 @@
+import { Chess } from "chess.js";
+import { extractFine, type PieceSample } from "./recognition/features.ts";
+import { refineWithLibrary, libraryCoverage } from "./recognition/library.ts";
+import { readLearning } from "./recognition/learning.ts";
+import { secondRead, secondReaderInfo } from "./recognition/second-reader.ts";
+import {
+  getTrackedGame,
+  matchContinuation,
+  type TemporalMatch,
+} from "./recognition/tracking.ts";
+import {
+  RecognitionFailure,
+  type RecognitionDiagnostics,
+  type RecognitionExtras,
+} from "./recognition/types.ts";
 import { inferDuolingoPosition } from "./duolingo-inference.ts";
-import { locateDuolingoGrid, hasDuolingoPalette } from "./duolingo-grid.ts";
+import {
+  locateDuolingoGrid,
+  locateDuolingoGrids,
+  hasDuolingoPalette,
+} from "./duolingo-grid.ts";
 import { validatePlacement } from "./position.ts";
 import { duolingoSignatures } from "./duolingo-signatures.ts";
 
@@ -10,7 +29,7 @@ export type BoardCrop = {
   imageWidth: number;
   imageHeight: number;
 };
-export type DuolingoResult = {
+export type DuolingoResult = RecognitionExtras & {
   boardCrop: BoardCrop;
   squares: string[];
   orientation: "white" | "black";
@@ -179,13 +198,16 @@ export function combineMatches(hits: ReturnType<typeof classify>[]) {
 export async function recognizeDuolingoScreenshot(
   file: File,
   manualCrop?: BoardCrop,
+  options: { useLearning?: boolean; useTracking?: boolean } = {},
 ): Promise<DuolingoResult | null> {
-  const img = await decode(file);
+  const started = performance.now(),
+    img = await decode(file);
   const canvas = document.createElement("canvas"),
     ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw Error("Canvas 2D not supported by this browser");
+  if (!ctx) throw Error("Canvas 2D not supported");
   const width = 512,
-    height = Math.round((img.naturalHeight * width) / img.naturalWidth);
+    height = Math.round((img.naturalHeight * width) / img.naturalWidth),
+    scale = img.naturalWidth / width;
   if (height > 5000 && !manualCrop) return null;
   if (
     manualCrop &&
@@ -196,134 +218,264 @@ export async function recognizeDuolingoScreenshot(
       manualCrop.x + manualCrop.size > img.naturalWidth + 0.1 ||
       manualCrop.y + manualCrop.size > img.naturalHeight + 0.1)
   )
-    throw new Error("Crop must contain a square board within the image.");
+    throw Error("Crop must contain a square board within the image.");
   canvas.width = width;
   canvas.height = height;
-  ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(img, 0, 0, width, height);
   const pixels = ctx.getImageData(0, 0, width, height).data;
-  const scale = img.naturalWidth / width;
   const bounds = manualCrop
-    ? {
-        x: manualCrop.x / scale,
-        y: manualCrop.y / scale,
-        size: manualCrop.size / scale,
-        error: 0,
-      }
-    : locateDuolingoGrid(pixels, width, height);
-  if (!bounds) {
+    ? [
+        {
+          x: manualCrop.x / scale,
+          y: manualCrop.y / scale,
+          size: manualCrop.size / scale,
+          error: 0,
+        },
+      ]
+    : locateDuolingoGrids(pixels, width, height, 3);
+  const profile = readLearning();
+  const learned =
+    options.useLearning === false || !profile.enabled ? [] : profile.samples;
+  const game = options.useTracking === false ? null : getTrackedGame();
+  const diagnostics: RecognitionDiagnostics = {
+    version: 1,
+    elapsedMs: 0,
+    readerPolicy: secondReaderInfo.policy,
+    nativeLabels: libraryCoverage.nativeLabels,
+    missingNativeLabels: libraryCoverage.missingNativeLabels,
+    learnedSamples: learned.length,
+    crops: [],
+    tiles: [],
+    notes: [
+      "Match scores are visual similarity, not calibrated accuracy.",
+      "The second reader is advisory until independent validation is available.",
+    ],
+  };
+  if (!bounds.length) {
     if (hasDuolingoPalette(pixels))
-      throw new Error(
+      throw new RecognitionFailure(
         "Duolingo board edges need adjustment. Use Adjust board crop to align all eight rows and files.",
+        diagnostics,
       );
     return null;
   }
   const tile = document.createElement("canvas");
   tile.width = tile.height = 24;
-  const tileContext = tile.getContext("2d", { willReadFrequently: true });
-  if (!tileContext) throw Error("Canvas tile processing unavailable");
-  tileContext.imageSmoothingEnabled = true;
-  tileContext.imageSmoothingQuality = "high";
-  const sourceTop = bounds.y * scale,
-    sourceLeft = bounds.x * scale,
-    sourceSize = bounds.size * scale,
-    sourceCell = sourceSize / 8;
-  const squares: string[] = [],
-    confidences: number[] = [],
-    uncertainSquares: string[] = [];
-  const tileScores: ReturnType<typeof combineMatches>[] = [];
-  // Sample each source square directly rather than rescaling the entire board.
-  // Tiny offsets test whether JPEG edges/resampling change the predicted label.
-  const offsets = [
-    [0, 0],
-    [-0.3, 0],
-    [0.3, 0],
-    [0, -0.3],
-    [0, 0.3],
-  ];
-  for (let row = 0; row < 8; row++)
-    for (let col = 0; col < 8; col++) {
-      const hits = offsets.map(([dx, dy]) => {
-        tileContext.clearRect(0, 0, 24, 24);
-        tileContext.drawImage(
-          img,
-          sourceLeft + col * sourceCell + (dx * sourceCell) / 24,
-          sourceTop + row * sourceCell + (dy * sourceCell) / 24,
-          sourceCell,
-          sourceCell,
-          0,
-          0,
-          24,
-          24,
+  const tx = tile.getContext("2d", { willReadFrequently: true });
+  const fineCanvas = document.createElement("canvas");
+  fineCanvas.width = fineCanvas.height = 48;
+  const fx = fineCanvas.getContext("2d", { willReadFrequently: true });
+  if (!tx || !fx) throw Error("Canvas tile processing unavailable");
+  tx.imageSmoothingQuality = fx.imageSmoothingQuality = "high";
+  type Candidate = {
+    crop: BoardCrop;
+    squares: string[];
+    hits: ReturnType<typeof combineMatches>[];
+    samples: PieceSample[];
+    secondary: ReturnType<typeof secondRead>[];
+    personal: boolean[];
+    adjusted: number[];
+    objective: number;
+    valid: boolean;
+    temporal?: TemporalMatch;
+    orientation: "white" | "black";
+  };
+  const evaluated: Candidate[] = [];
+  for (const bound of bounds) {
+    const crop: BoardCrop = {
+        x: bound.x * scale,
+        y: bound.y * scale,
+        size: bound.size * scale,
+        imageWidth: img.naturalWidth,
+        imageHeight: img.naturalHeight,
+      },
+      cell = crop.size / 8;
+    const hits: ReturnType<typeof combineMatches>[] = [],
+      samples: PieceSample[] = [],
+      secondary: ReturnType<typeof secondRead>[] = [],
+      personal: boolean[] = [];
+    for (let row = 0; row < 8; row++)
+      for (let col = 0; col < 8; col++) {
+        const x = crop.x + col * cell,
+          y = crop.y + row * cell;
+        const features = [
+          [0, 0],
+          [-0.3, 0],
+          [0.3, 0],
+          [0, -0.3],
+          [0, 0.3],
+        ].map(([dx, dy]) => {
+          tx.clearRect(0, 0, 24, 24);
+          tx.drawImage(
+            img,
+            x + (dx * cell) / 24,
+            y + (dy * cell) / 24,
+            cell,
+            cell,
+            0,
+            0,
+            24,
+            24,
+          );
+          return feature(tx.getImageData(0, 0, 24, 24), 0, 0);
+        });
+        const coarse = combineMatches(
+          features.map((f) => classify(f.mask, f.color)),
         );
-        const sample = feature(tileContext.getImageData(0, 0, 24, 24), 0, 0);
-        return classify(sample.mask, sample.color);
+        fx.clearRect(0, 0, 48, 48);
+        fx.drawImage(img, x, y, cell, cell, 0, 0, 48, 48);
+        const fine = extractFine(fx.getImageData(0, 0, 48, 48).data);
+        const sample: PieceSample = {
+          ...fine,
+          coarse: Array.from(features[0].mask, (value) =>
+            Math.round(value * 15).toString(16),
+          ).join(""),
+          style: "duo-teal-v1",
+        };
+        const library = refineWithLibrary(coarse.scores, sample, learned);
+        const score = library.scores[library.piece];
+        hits.push({
+          ...coarse,
+          scores: library.scores,
+          piece: library.piece,
+          score,
+          margin: library.margin,
+          confidence: clamp(1 - score * 2.2, 0, 1),
+          uncertain:
+            coarse.uncertain ||
+            library.margin < 0.006 ||
+            (library.piece !== coarse.piece && !library.personalUsed),
+        });
+        samples.push(sample);
+        secondary.push(secondRead(features[0].mask, features[0].color));
+        personal.push(library.personalUsed);
+      }
+    const inferred = inferDuolingoPosition(hits),
+      occupied = hits.filter((hit) => hit.piece !== ".");
+    const unfamiliar =
+      occupied.length > 0 &&
+      occupied.filter((hit) => hit.score > 0.16).length > occupied.length * 0.3;
+    let squares = inferred?.squares || hits.map((hit) => hit.piece),
+      temporal: TemporalMatch | undefined;
+    const topWhite = squares
+        .slice(0, 16)
+        .filter((p) => p !== "." && p === p.toUpperCase()).length,
+      bottomWhite = squares
+        .slice(48)
+        .filter((p) => p !== "." && p === p.toUpperCase()).length;
+    let orientation: "white" | "black" =
+      topWhite > bottomWhite ? "black" : "white";
+    if (game && !unfamiliar) {
+      const attempts = (["white", "black"] as const).flatMap((direction) => {
+        const rows = direction === "black" ? [...hits].reverse() : hits;
+        const match = matchContinuation(
+          game.fen,
+          rows.map((hit) => hit.scores),
+        );
+        return match ? [{ direction, match }] : [];
       });
-      const hit = combineMatches(hits);
-      tileScores.push(hit);
-      squares.push(hit.piece);
-      confidences.push(hit.confidence);
-      if (hit.uncertain) uncertainSquares.push("abcdefgh"[col] + (8 - row));
+      if (attempts.length === 1) {
+        temporal = attempts[0].match;
+        orientation = attempts[0].direction;
+        const expanded = new Chess(temporal.fen)
+          .board()
+          .flat()
+          .map((p) =>
+            p ? (p.color === "w" ? p.type.toUpperCase() : p.type) : ".",
+          );
+        squares = orientation === "black" ? expanded.reverse() : expanded;
+      }
     }
-  const occupied = tileScores.filter((hit) => hit.piece !== ".");
-  if (
-    occupied.length &&
-    occupied.filter((hit) => hit.score > 0.16).length > occupied.length * 0.3
-  )
-    throw new Error(
-      "Too many piece shapes are unclear. Crop tightly to the board or use the original full-resolution Duolingo screenshot.",
-    );
-  const inferred = inferDuolingoPosition(tileScores);
-  if (!inferred)
-    throw new Error(
-      "Duolingo piece matches conflict with chess rules. Adjust the board crop to include only the 8×8 board.",
-    );
-  if (inferred) {
-    squares.splice(0, 64, ...inferred.squares);
-    for (const index of inferred.adjusted) {
-      const square = "abcdefgh"[index % 8] + (8 - Math.floor(index / 8));
-      if (!uncertainSquares.includes(square)) uncertainSquares.push(square);
-    }
+    const visualCost = occupied.length
+      ? occupied.reduce((sum, hit) => sum + hit.score, 0) / occupied.length
+      : 1;
+    const valid = !!(inferred || temporal) && !unfamiliar;
+    const objective =
+      visualCost +
+      Math.max(0, bound.error) * 0.002 +
+      (valid ? 0 : 0.25) +
+      (temporal ? -0.008 : 0);
+    diagnostics.crops.push({
+      crop,
+      gridError: bound.error,
+      visualCost,
+      valid,
+      objective,
+    });
+    evaluated.push({
+      crop,
+      squares,
+      hits,
+      samples,
+      secondary,
+      personal,
+      adjusted: inferred?.adjusted || [],
+      objective,
+      valid,
+      temporal,
+      orientation,
+    });
   }
-  const topWhites = squares
-    .slice(0, 16)
-    .filter((p) => p !== "." && p === p.toUpperCase()).length;
-  const bottomWhites = squares
-    .slice(48, 64)
-    .filter((p) => p !== "." && p === p.toUpperCase()).length;
-  const orientation = topWhites > bottomWhites ? "black" : "white";
-  // Empty squares must not inflate the reported match quality of actual pieces.
-  const pieceConfidences = tileScores.flatMap((hit, index) =>
-    hit.piece !== "." ? [confidences[index]] : [],
-  );
-  const meanConfidence = pieceConfidences.length
-    ? pieceConfidences.reduce((a, b) => a + b, 0) / pieceConfidences.length
-    : 0;
-  // FEN always has rank 8 first; black-bottom screenshots show rank 1 first.
-  const normalized = orientation === "black" ? [...squares].reverse() : squares;
-  const fixedUncertain =
-    orientation === "black"
-      ? uncertainSquares.map(
-          (s) => "abcdefgh"[7 - "abcdefgh".indexOf(s[0])] + (9 - Number(s[1])),
-        )
-      : uncertainSquares;
-  return {
-    boardCrop: {
-      x: sourceLeft,
-      y: sourceTop,
-      size: sourceSize,
-      imageWidth: img.naturalWidth,
-      imageHeight: img.naturalHeight,
+  evaluated.sort((a, b) => a.objective - b.objective);
+  const best = evaluated.find((candidate) => candidate.valid) || evaluated[0];
+  diagnostics.selectedCrop = best.crop;
+  const key = (visual: number) => {
+    const index = best.orientation === "black" ? 63 - visual : visual;
+    return "abcdefgh"[index % 8] + (8 - Math.floor(index / 8));
+  };
+  diagnostics.tiles = best.hits.map((hit, index) => ({
+    square: key(index),
+    piece: best.squares[index],
+    alternatives: Object.entries(hit.scores)
+      .sort((a, b) => a[1] - b[1])
+      .slice(0, 3)
+      .map(([piece, distance]) => ({ piece, distance })),
+    secondary: {
+      piece: best.secondary[index].piece,
+      activation: best.secondary[index].activation,
     },
+    agreed: best.squares[index] === best.secondary[index].piece,
+    personal: best.personal[index],
+  }));
+  diagnostics.elapsedMs = Math.round(performance.now() - started);
+  if (game)
+    diagnostics.tracking = {
+      matched: !!best.temporal,
+      moves: best.temporal?.moves,
+    };
+  if (!best.valid)
+    throw new RecognitionFailure(
+      "Piece matches remain inconsistent. Adjust the crop or use the original full-resolution screenshot; no board has been guessed.",
+      diagnostics,
+    );
+  const uncertainSquares = best.hits.flatMap((hit, index) => {
+    const modelDisagrees =
+      best.secondary[index].piece !== hit.piece && hit.uncertain;
+    return !best.temporal &&
+      (hit.uncertain || best.adjusted.includes(index) || modelDisagrees)
+      ? [key(index)]
+      : [];
+  });
+  const occupied = best.hits.filter((hit) => hit.piece !== ".");
+  const normalized =
+    best.orientation === "black" ? [...best.squares].reverse() : best.squares;
+  return {
+    boardCrop: best.crop,
     squares: normalized,
-    orientation,
+    orientation: best.orientation,
     reliable:
-      !!inferred &&
-      uncertainSquares.length === 0 &&
-      validatePlacement(normalized, "w").errors.length === 0,
-    meanConfidence,
-    minConfidence: Math.min(...confidences),
-    uncertainSquares: fixedUncertain,
+      !uncertainSquares.length &&
+      !validatePlacement(normalized, "w").errors.length,
+    meanConfidence: occupied.length
+      ? occupied.reduce((sum, hit) => sum + hit.confidence, 0) / occupied.length
+      : 0,
+    minConfidence: Math.min(...best.hits.map((hit) => hit.confidence)),
+    uncertainSquares,
+    diagnostics,
+    learningTiles: Object.fromEntries(
+      best.samples.map((sample, index) => [key(index), sample]),
+    ),
+    temporal: best.temporal,
   };
 }

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "trainingGroups": [
+    "decfda492b3b938af31cdc64b8c2d376b523358f45ce8f77f41b5468a903afc6",
+    "legacy-provenance-unknown"
+  ],
+  "legacyProvenanceComplete": false,
+  "cases": [
+    {
+      "id": "available-original",
+      "sourceGroup": "decfda492b3b938af31cdc64b8c2d376b523358f45ce8f77f41b5468a903afc6",
+      "pathEnv": "DUOLINGO_TEST_IMAGE",
+      "defaultPath": "artifacts/duolingo-original.jpg",
+      "placement": "4r1k1/2p2ppp/5n2/p2p4/3P1P2/2P3P1/P3N2P/RN2K2R",
+      "orientation": "black",
+      "crop": {
+        "x": 0,
+        "y": 428.3671875,
+        "size": 588,
+        "imageWidth": 588,
+        "imageHeight": 1280
+      },
+      "split": "regression",
+      "verifiedLabels": true,
+      "imageSha256": "decfda492b3b938af31cdc64b8c2d376b523358f45ce8f77f41b5468a903afc6"
+    }
+  ]
+}

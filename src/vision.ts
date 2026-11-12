@@ -1,7 +1,8 @@
+import type { RecognitionExtras } from "./recognition/types";
 import { validatePlacement } from "./position";
 import { createRecognizer, resolveOrientation } from "@scoriiu/fenshot";
 import { recognizeDuolingoScreenshot, type BoardCrop } from "./duolingo";
-export type ScanOutcome = {
+export type ScanOutcome = RecognitionExtras & {
   boardCrop?: BoardCrop;
   squares: string[];
   orientation: "white" | "black";
@@ -41,12 +42,17 @@ export function parsePlacement(placement: string): string[] {
 }
 export async function scanImage(
   file: File,
-  options: { mode?: "auto" | "duolingo" | "general"; crop?: BoardCrop } = {},
+  options: {
+    mode?: "auto" | "duolingo" | "general";
+    crop?: BoardCrop;
+    useLearning?: boolean;
+    useTracking?: boolean;
+  } = {},
 ): Promise<ScanOutcome | null> {
   const duolingo =
     options.mode === "general"
       ? null
-      : await recognizeDuolingoScreenshot(file, options.crop);
+      : await recognizeDuolingoScreenshot(file, options.crop, options);
   if (duolingo) return { ...duolingo, source: "Duolingo-specific recognizer" };
   if (options.mode === "duolingo")
     throw new Error(

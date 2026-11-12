@@ -1,15 +1,19 @@
-# ChessLens AI v0.6.1 — Duolingo Chess scanner
+# ChessLens AI v0.7.0 — Duolingo Chess scanner
 
 React / Vite mobile chess position analyzer. The Duolingo-specific screenshot recognition path identifies chessboards with Duolingo's teal grid, matches the distinctive piece silhouettes to lightweight numeric references, handles both board orientations and flags uncertain squares for manual review. It falls back to a general browser-side ONNX recognizer for other chess screenshots, then sends a validated FEN to Stockfish.
 
-**Limits:** Duolingo detection is calibrated with six user-provided examples, not independently validated on unseen screenshots or iPhone Safari. A later regression fix verifies all 64 squares in the supplied failing screenshot, adds board-boundary checks and original-square comparison. This does not establish universal accuracy. No computer vision algorithm guarantees 100% accuracy; choose the side to move before analysis; original-image comparison and corrections are available without a verification checkbox.
+**Recognition 0.7.0:** native-resolution references, multiple crop candidates, opt-in correction learning with Undo/Reset, legal game-continuation matching, and an experimental offline second reader. See [implementation, benchmark and data limits](docs/recognition.md).
+
+**Limits:** the available original and its five transformed variants pass 64/64 squares. They are one training source group, so unseen-image accuracy remains unmeasured. High-resolution bishop/queen examples are still missing. The second reader stays advisory until independent validation; visual match percentages are not accuracy guarantees. Choose the side to move unless a unique tracked game continuation provides it.
 
 ### Build
+
 ```bash
 npm install
 npm test
 npm run build
 ```
+
 Vercel: Vite, build `npm run build`, output `dist`.
 
 The source contains numerical Duolingo piece silhouettes, not full screenshots or copyrighted character illustrations. The chess engine uses Stockfish GPLv3. The third-party fenshot package is MIT licensed.
@@ -17,7 +21,7 @@ The source contains numerical Duolingo piece silhouettes, not full screenshots o
 ### Mobile UI
 
 The app guides you through **Import → Review → Analyze**, with a purple app bar,
-lavender board, compact engine variations, and camera/gallery shortcuts.
+classic cream/brown board, compact engine variations, and camera/gallery shortcuts.
 Manual corrections and castling controls live behind secondary controls.
 See [UI structure and verification notes](docs/ui-refactor.md) for details and
 optional browser checks.
