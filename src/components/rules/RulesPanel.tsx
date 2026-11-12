@@ -33,13 +33,13 @@ export function RulesPanel({
       <summary>Chess rules &amp; draw claims</summary>
       <p role="status">{status.message}</p>
       <p>
-        Castling and en passant follow the recorded position and moves. A
-        screenshot cannot establish these rights. Repetition is counted from the
-        available history.
+        A screenshot can’t show earlier moves. Set castling and en passant in
+        the scan options if you know them. Repetitions count from the moves
+        saved here.
       </p>
       <p>
-        {status.repetitions} occurrence{status.repetitions === 1 ? "" : "s"} of
-        this position in the recorded line.
+        This position has appeared {status.repetitions}{" "}
+        {status.repetitions === 1 ? "time" : "times"} in your saved moves.
       </p>
       {status.claims.map((reason) => (
         <button
@@ -53,7 +53,7 @@ export function RulesPanel({
       {selected && (
         <div className="claim-intent">
           <label>
-            Claim before an intended move
+            Claim a draw with your next move
             <select
               aria-label="Intended move for draw claim"
               value={`${selected.uci}|${selected.reason}`}
@@ -76,13 +76,13 @@ export function RulesPanel({
             Claim with selected move
           </button>
           <p>
-            The intended move is declared for the claim and is not played on the
-            board.
+            This declares your next move for the draw claim. It won’t move the
+            piece on the board.
           </p>
         </div>
       )}
       {!status.terminal && !status.claims.length && !selected && (
-        <p>No draw claim is available from the recorded line.</p>
+        <p>No draw to claim from the moves saved so far.</p>
       )}
     </details>
   );

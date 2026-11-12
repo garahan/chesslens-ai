@@ -24,7 +24,7 @@ with sync_playwright() as p:
   if page.locator('details.rules-panel').get_attribute('open')is None:page.get_by_text('Chess rules & draw claims',exact=True).click()
  for _ in range(2):
   for a,b in [('g1','f3'),('g8','f6'),('f3','g1'),('f6','g8')]:move(a,b)
- rules();page.get_by_text('3 occurrences of this position in the recorded line.',exact=True).wait_for()
+ rules();page.get_by_text('This position has appeared 3 times in your saved moves.',exact=True).wait_for()
  page.get_by_role('button',name='Claim draw · threefold repetition',exact=True).click()
  assert page.get_by_role('button',name='Analyze',exact=True).is_disabled()
  before=page.locator('#fen-input').input_value();move('g1','f3');assert page.locator('#fen-input').input_value()==before

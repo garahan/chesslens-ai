@@ -22,8 +22,8 @@ export function AppHeader({
             ChessLens <span>AI</span>
           </h1>
         </div>
-        <span className="build-badge" aria-label="App version 0.9.0">
-          0.9.0
+        <span className="build-badge" aria-label="App version 0.9.1">
+          0.9.1
         </span>
         <button
           className="icon-button"

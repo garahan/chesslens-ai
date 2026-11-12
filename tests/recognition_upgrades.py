@@ -32,13 +32,13 @@ with sync_playwright() as playwright:
             assert page.evaluate("JSON.parse(localStorage.getItem('chesslens-corrections-v1')).samples.length") == 0
     page.get_by_text('Recognition report', exact=True).click()
     with page.expect_download() as download:
-        page.get_by_role('button', name='Download diagnostic report', exact=True).click()
+        page.get_by_role('button', name='Download scan report', exact=True).click()
     report = json.loads(Path(download.value.path()).read_text())
     assert len(report['tiles']) == 64
     assert report['missingNativeLabels'] == ['B','Q','b','q']
     assert 'mask' not in json.dumps(report) and 'data:image' not in json.dumps(report)
     with page.expect_download() as download:
-        page.get_by_role('button', name='Export current board labels', exact=True).click()
+        page.get_by_role('button', name='Save board labels', exact=True).click()
     labels = json.loads(Path(download.value.path()).read_text())
     assert labels['verified'] is False
     assert len(labels['sourceGroup']) == 64

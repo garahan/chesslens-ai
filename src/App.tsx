@@ -203,7 +203,7 @@ export default function App() {
       return;
     }
     if (f.size > 12 * 1024 * 1024) {
-      setError("Maximum 12 MB image.");
+      setError("That image is too big. Choose one under 12 MB.");
       return;
     }
     const request = ++scanRequest.current;
@@ -219,7 +219,7 @@ export default function App() {
     };
     reader.onerror = () => {
       if (request === scanRequest.current)
-        setError("This image could not be opened. Choose another image.");
+        setError("Couldn’t open that image. Try another screenshot.");
     };
     reader.readAsDataURL(f);
   };
@@ -248,7 +248,7 @@ export default function App() {
       await navigator.clipboard.writeText(value);
       setError("Copied to clipboard");
     } catch {
-      setError("Copy unavailable — select the text manually");
+      setError("Couldn’t copy it. You can select and copy the text instead.");
     }
   };
   const best = variations[0];
@@ -260,7 +260,9 @@ export default function App() {
       if (value) localStorage.setItem("chesslens-favorite", value);
       else localStorage.removeItem("chesslens-favorite");
     } catch {
-      setError("Favorite saved for this session");
+      setError(
+        "Changed for now, but your browser couldn’t keep it for next time.",
+      );
     }
   };
   useEffect(() => {
@@ -484,17 +486,18 @@ export default function App() {
               Open starting position
             </button>
             <div className="install-help">
-              <strong>Use from your Home Screen</strong>
+              <strong>Keep ChessLens on your Home Screen</strong>
               <p>
-                In Safari: Share → Add to Home Screen. Open the new icon online
-                once and wait for “Ready offline” before disconnecting. iOS may
-                clear saved data if storage is low.
+                In Safari, tap Share → Add to Home Screen. Open the new icon
+                while you’re online and wait for “Ready offline”. You can then
+                scan and analyze without internet. If your phone clears the
+                download to free up space, tap Retry to get it back.
               </p>
             </div>
             <p>
-              ChessLens AI 0.9.0 · Stockfish 19
+              ChessLens AI 0.9.1 · Stockfish 19
               <br />
-              Screenshot recognition runs on your device.
+              Your screenshots stay on your device.
             </p>
           </section>
         </Modal>

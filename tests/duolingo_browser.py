@@ -25,7 +25,7 @@ with sync_playwright() as p:
  page.get_by_role('button',name='Original screenshot',exact=True).click()
  page.get_by_role('img',name='Original screenshot board',exact=True).wait_for()
  page.screenshot(path=str(ARTIFACTS/'duolingo-compare.png'),full_page=True)
- page.get_by_role('button',name='Recognized board',exact=True).click()
+ page.get_by_role('button',name='Your board',exact=True).click()
  page.get_by_role('button',name='Review e1',exact=True).click()
  source=page.get_by_role('img',name='Original screenshot square e1',exact=True)
  source.wait_for()

@@ -157,7 +157,7 @@ export function ScanEditor({
       const detected = await scanImage(file, { mode: scannerMode, crop });
       if (request !== requestRef.current) return;
       if (!detected) {
-        setError("No chessboard detected. Try a clearer screenshot.");
+        setError("Couldn’t find the board. Try a clearer screenshot.");
         return;
       }
       setPieces(detected.squares);
@@ -184,7 +184,7 @@ export function ScanEditor({
       if (request !== requestRef.current) return;
       if (e instanceof RecognitionFailure) setReport(e.diagnostics);
       setError(
-        `Scanner could not run: ${e instanceof Error ? e.message : "unknown error"}`,
+        e instanceof Error ? e.message : "Couldn’t scan that image. Try again.",
       );
     } finally {
       if (request === requestRef.current) setScanning(false);
@@ -250,7 +250,7 @@ export function ScanEditor({
     setNotice(
       restored
         ? "Correction undone."
-        : "Board restored; saved learning changed in another tab.",
+        : "Piece restored. Saved examples changed in another tab, so those were kept.",
     );
     setLastEdit(null);
   };
@@ -258,7 +258,7 @@ export function ScanEditor({
     try {
       if (!turnConfirmed) throw Error("Select whose turn it is");
       if (activeReview.length)
-        throw Error("Review the unclear extra pieces before analysis");
+        throw Error("Check the marked extra pieces before analyzing");
       if (issues.errors.length) throw Error(issues.errors.join("; "));
       validateAnalysisPosition(fen);
       const board = new Chess(fen);
@@ -270,7 +270,7 @@ export function ScanEditor({
       setError("");
     } catch (e) {
       setError(
-        `Fix the position: ${e instanceof Error ? e.message : "invalid position"}`,
+        e instanceof Error ? e.message : "Check the board before analyzing.",
       );
     }
   };
@@ -312,9 +312,7 @@ export function ScanEditor({
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      setNotice(
-        "Could not export labels. Try again from a secure browser connection.",
-      );
+      setNotice("Couldn’t save the board labels. Try again.");
     }
   };
   return (
@@ -335,7 +333,7 @@ export function ScanEditor({
         <div className="scan-progress" role="status">
           <span className="scanner-spinner" />
           <strong>Finding your board…</strong>
-          <p>Recognizing the pieces on your device.</p>
+          <p>This all happens on your device.</p>
         </div>
       ) : (
         <>
@@ -348,7 +346,7 @@ export function ScanEditor({
               <button className="primary" onClick={() => setCropOpen(true)}>
                 Adjust board crop
               </button>
-              <p>The original image is shown until a valid board is found.</p>
+              <p>Drag a box around the board to help the scanner find it.</p>
             </div>
           ) : showOriginal && result?.boardCrop ? (
             <div className="source-board-card">
@@ -358,7 +356,9 @@ export function ScanEditor({
                 orientation={orientation}
                 sourceOrientation={result.orientation}
               />
-              <p>Compare the pieces, then switch back to correct any square.</p>
+              <p>
+                Check the pieces here, then switch back to fix anything missed.
+              </p>
             </div>
           ) : (
             <div ref={boardRef} className="editorboard">
@@ -416,7 +416,7 @@ export function ScanEditor({
                 aria-pressed={!showOriginal}
                 onClick={() => setShowOriginal(false)}
               >
-                Recognized board
+                Your board
               </button>
               <button
                 aria-pressed={showOriginal}
@@ -448,7 +448,7 @@ export function ScanEditor({
           >
             <summary>
               {uncertain.length
-                ? `${uncertain.length} uncertain squares · tap to edit`
+                ? `Check ${uncertain.length} ${uncertain.length === 1 ? "square" : "squares"} · tap to edit`
                 : result
                   ? `Match ${Math.round(result.meanConfidence * 100)}% · details`
                   : "Scanner details"}
@@ -457,9 +457,9 @@ export function ScanEditor({
               <strong>
                 {result
                   ? result.source?.includes("Duolingo")
-                    ? "Duolingo recognizer"
+                    ? "Duolingo scanner"
                     : "General scanner"
-                  : "Scanner needs your help"}
+                  : "Let’s find the board"}
               </strong>
               <button className="text-button" onClick={detect} disabled={!file}>
                 Rescan
@@ -496,10 +496,10 @@ export function ScanEditor({
                 </div>
                 <p>
                   {uncertain.length
-                    ? `${uncertain.length} squares need a closer look.`
+                    ? `${uncertain.length === 1 ? "This square needs" : "These squares need"} a closer look.`
                     : result.reliable
                       ? "Tap any square to change a piece."
-                      : "Low match quality. Compare with the original if needed."}
+                      : "Some pieces were hard to read. Compare them with your screenshot."}
                 </p>
               </>
             )}
@@ -527,9 +527,9 @@ export function ScanEditor({
             )}
             {activeReview.length > 0 && (
               <p className="notice" role="status">
-                Extra pieces have weak visual matches. Compare{" "}
-                {activeReview.join(", ")} with the original, then choose the
-                correct pieces to enable analysis.
+                These extra pieces were hard to read. Check{" "}
+                {activeReview.join(", ")} against your screenshot, then choose
+                the right pieces before analyzing.
               </p>
             )}
             <button
@@ -612,11 +612,14 @@ export function ScanEditor({
                   (tile) => tile.square === focusedSquare && !tile.agreed,
                 ) && (
                   <p className="reader-policy">
-                    The experimental second reader disagrees. Compare the
-                    original before choosing.
+                    The two checks found different pieces here. Take a look at
+                    the screenshot, then pick the right one.
                   </p>
                 )}
-                <p>Tap a piece to replace this square.</p>
+                <p>
+                  Which piece belongs here? Tap it below, or × for an empty
+                  square.
+                </p>
                 <div className="piecepalette">
                   {palette.map((piece) => (
                     <button
@@ -725,9 +728,9 @@ export function ScanEditor({
           <details className="castling-details">
             <summary>Advanced position options</summary>
             <p>
-              A screenshot cannot establish move history. Enable castling only
-              if that king and rook have never moved. Clear paths and attacked
-              squares are checked when moves are generated.
+              Know the earlier moves? You can add those details here. Allow
+              castling only if that king and rook have never moved. The app
+              checks whether castling is safe when you try the move.
             </p>
             <div className="castlingRights">
               {(
@@ -778,12 +781,12 @@ export function ScanEditor({
                 </select>
               </label>
               <p>
-                Set only after the opposing pawn's immediately preceding
-                two-square advance. Illegal or king-exposing captures remain
-                unavailable.
+                Use this only if the opponent’s last move was a two-square pawn
+                advance. The capture still needs to be legal and keep your king
+                safe.
               </p>
               <label>
-                Halfmoves since pawn move or capture
+                Turns since a pawn move or capture (count each player’s move)
                 <input
                   aria-label="Halfmove clock"
                   type="number"
@@ -808,7 +811,7 @@ export function ScanEditor({
           </details>
           {(result || manuallyEdited) && issues.errors.length > 0 && (
             <div className="notice" role="alert">
-              Position needs correction: {issues.errors.join("; ")}
+              Check the board: {issues.errors.join("; ")}
             </div>
           )}
           {issues.warnings.length > 0 && (

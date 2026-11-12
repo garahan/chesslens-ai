@@ -23,43 +23,44 @@ export function RecognitionReport({
     <details className="recognition-report">
       <summary>Recognition report</summary>
       <p>
-        {report.crops.length} board alignments checked · {report.elapsedMs} ms.
-        Readers agree on {report.tiles.filter((tile) => tile.agreed).length}/
+        Tried {report.crops.length} board crops in {report.elapsedMs} ms. The
+        extra piece check agrees on{" "}
+        {report.tiles.filter((tile) => tile.agreed).length}/
         {report.tiles.length} squares.
       </p>
       <p>
-        Second reader is experimental. Agreement is not a calibrated accuracy
-        score.
+        That extra check is still being tested. Both checks can agree and still
+        miss a piece, so it’s worth a quick look at the board.
       </p>
       {report.processing && (
         <p>
-          {report.processing.clearFirstPass} squares clear on the first pass ·{" "}
-          {report.processing.refined.length} received extra processing.
+          {report.processing.clearFirstPass} squares were clear on the first
+          try. {report.processing.refined.length} got another look.
           {report.processing.deferred > 0
-            ? ` ${report.processing.deferred} difficult squares remain for review.`
+            ? ` Please check ${report.processing.deferred === 1 ? "the remaining square" : `the ${report.processing.deferred} remaining squares`}.`
             : ""}
         </p>
       )}
       {report.coordinates && (
         <p>
-          Orientation:{" "}
+          Board direction came from{" "}
           {report.orientationSource === "coordinates"
-            ? `${report.coordinates.matched} coordinate labels`
+            ? `${report.coordinates.matched} labels along the edges`
             : report.orientationSource === "tracked-game"
-              ? "tracked game"
-              : "piece layout"}
+              ? "your saved game"
+              : "the piece positions"}
           .
           {report.coordinates.orientation
             ? ""
-            : ` ${report.coordinates.reason}.`}
+            : " There weren’t enough clear edge labels to confirm it."}
         </p>
       )}
       {report.reconstruction && (
         <p>
-          Reconstruction compared {report.reconstruction.checked}/64 squares
-          against other examples.
+          Compared piece shapes on {report.reconstruction.checked}/64 squares
+          with saved examples.
           {report.reconstruction.outliers.length
-            ? ` Differences at ${report.reconstruction.outliers.join(", ")}.`
+            ? ` Take a look at ${report.reconstruction.outliers.join(", ")}.`
             : ""}
         </p>
       )}
@@ -72,36 +73,39 @@ export function RecognitionReport({
             height={384}
           />
           <figcaption>
-            Shape comparison. Hatched squares have no matching reference.
+            Striped squares don’t have a saved example to compare with yet.
           </figcaption>
         </figure>
       )}
       {report.tracking && (
         <p>
           {report.tracking.matched
-            ? `Game continuation: ${report.tracking.moves?.join(" ") || "same position"}`
-            : "No unique continuation; full image recognition used."}
+            ? `Matched your game: ${report.tracking.moves?.join(" ") || "same position"}`
+            : "Couldn’t match this to one clear next position, so the whole board was scanned again."}
         </p>
       )}
-      <p>
-        Native piece library: {report.nativeLabels.join(" ")}. Missing
-        high-resolution types: {report.missingNativeLabels.join(" ")}.
-      </p>
+      {report.missingNativeLabels.length > 0 && (
+        <p>
+          Detailed examples are still missing for{" "}
+          {report.missingNativeLabels.join(" ")}. Those pieces use the other
+          shape checks.
+        </p>
+      )}
       <button className="secondary" onClick={download}>
-        Download diagnostic report
+        Download scan report
       </button>
       {onExportLabels && (
         <button className="text-button" onClick={onExportLabels}>
-          Export current board labels
+          Save board labels
         </button>
       )}
       <table>
         <thead>
           <tr>
             <th>Square</th>
-            <th>Read</th>
-            <th>Other reader</th>
-            <th>Alternatives</th>
+            <th>Piece</th>
+            <th>Extra check</th>
+            <th>Other matches</th>
           </tr>
         </thead>
         <tbody>

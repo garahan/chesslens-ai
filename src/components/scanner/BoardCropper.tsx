@@ -68,8 +68,8 @@ export function BoardCropper({
           </button>
         </div>
         <p>
-          Move the square and drag its corner so all 8 rows and files fit. Leave
-          player artwork outside.
+          Drag the box over the board. Use the corner to fit all 64 squares,
+          keeping the characters and buttons outside.
         </p>
         <div
           ref={area}

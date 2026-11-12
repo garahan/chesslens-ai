@@ -14,7 +14,7 @@ with sync_playwright() as p:
  errors=[]
  page.on('pageerror',lambda e:errors.append(str(e)))
  page.goto(BASE_URL)
- page.get_by_role('heading',name='Import a chess screenshot').wait_for()
+ page.get_by_role('heading',name='Start with a screenshot').wait_for()
  page.screenshot(path=str(out/'home-iphone.png'),full_page=True)
  assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
  with page.expect_file_chooser() as fc:page.get_by_role('button',name='Open camera',exact=True).click()

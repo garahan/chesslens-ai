@@ -22,9 +22,9 @@ export function RecognitionSettings({
     [message, setMessage] = useState("");
   return (
     <section className="recognition-settings">
-      <h3>Recognition</h3>
+      <h3>Scanning</h3>
       <div className="setting-row">
-        <span>Learn corrections on this device</span>
+        <span>Remember my corrections</span>
         <button
           className="switch"
           role="switch"
@@ -34,15 +34,16 @@ export function RecognitionSettings({
             if (setLearningEnabled(!profile.enabled)) {
               setProfile(readLearning());
               setMessage("");
-            } else setMessage("Device storage is unavailable");
+            } else setMessage("Your browser couldn’t save this. Try again.");
           }}
         >
           <span />
         </button>
       </div>
       <p>
-        {profile.samples.length} saved tile references. Images stay on your
-        device. Undo is available after teaching a correction.
+        {profile.samples.length} saved example
+        {profile.samples.length === 1 ? "" : "s"}. Corrections stay on this
+        device. Changed your mind? Tap Undo after an edit.
       </p>
       <button
         className="secondary"
@@ -52,7 +53,7 @@ export function RecognitionSettings({
           setMessage(
             cleared
               ? "Saved corrections cleared"
-              : "Device storage is unavailable",
+              : "Your browser couldn’t save this. Try again.",
           );
         }}
       >
@@ -60,12 +61,12 @@ export function RecognitionSettings({
       </button>
       <div className="tracking-tools">
         <strong>
-          {game ? "Game tracking is on" : "Track consecutive screenshots"}
+          {game ? "Following this game" : "Keep track of the same game"}
         </strong>
         <p>
-          Choose a known-correct position once. The next scan can match up to
-          two half-moves, including special moves. Start a new game to clear the
-          anchor.
+          Start from a board you’ve checked. The next screenshot can follow one
+          move from each player, so you won’t need to choose the turn again when
+          there’s a clear match. Stop tracking when you switch games.
         </p>
         <button
           className="secondary"
@@ -74,7 +75,7 @@ export function RecognitionSettings({
               if (trackPosition(fen, line)) {
                 setGame(getTrackedGame());
                 setMessage("Tracking from this position");
-              } else setMessage("Device storage is unavailable");
+              } else setMessage("Your browser couldn’t save this. Try again.");
             } catch (error) {
               setMessage(
                 error instanceof Error ? error.message : "Invalid position",
@@ -91,7 +92,7 @@ export function RecognitionSettings({
               if (stopTracking()) {
                 setGame(null);
                 setMessage("Game tracking cleared");
-              } else setMessage("Device storage is unavailable");
+              } else setMessage("Your browser couldn’t save this. Try again.");
             }}
           >
             New game · stop tracking
@@ -99,8 +100,8 @@ export function RecognitionSettings({
         )}
       </div>
       <p className="reader-policy">
-        Second reader: experimental offline model. Agreement does not certify
-        accuracy; independent validation data is still limited.
+        The extra piece check is still a work in progress. Give the board a
+        quick look before analyzing.
       </p>
       {message && <p role="status">{message}</p>}
     </section>

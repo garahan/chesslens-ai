@@ -117,7 +117,7 @@ export function OfflineStatus() {
         ? "Ready offline"
         : "Offline · ready"
       : state === "development"
-        ? "On-device analysis"
+        ? "Running on your device"
         : state === "failed"
           ? "Offline download incomplete"
           : "Preparing offline…";

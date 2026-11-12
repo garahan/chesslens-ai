@@ -1,7 +1,7 @@
 {
   "name": "ChessLens AI",
   "short_name": "ChessLens",
-  "description": "Offline chess scanner and analysis with customizable themes",
+  "description": "Turn a chess screenshot into a board you can explore, even offline.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

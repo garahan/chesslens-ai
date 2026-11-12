@@ -28,12 +28,8 @@ export function HomeScreen({
             <ChessPiece piece="n" />
           </span>
         </div>
-        <h3>Import a chess screenshot</h3>
-        <p>
-          Scan the board. Review the pieces.
-          <br />
-          Explore the possibilities.
-        </p>
+        <h3>Start with a screenshot</h3>
+        <p>Pick a screenshot, check the pieces, and find your next move.</p>
         <button className="primary" onClick={onGallery}>
           <ImagePlus size={20} />
           Choose image
@@ -44,9 +40,9 @@ export function HomeScreen({
         </button>
       </div>
       <p className="source-hint">
-        Duolingo scanner is on by default.
+        Made for Duolingo screenshots.
         <br />
-        Other chess screenshots: choose General in scanner details.
+        Using another chess app? Choose General in scanner details.
       </p>
       {recent && (
         <button className="recent-card" onClick={onRecent}>
@@ -55,7 +51,7 @@ export function HomeScreen({
           </span>
           <div>
             <strong>Your last position</strong>
-            <small>Continue exploring</small>
+            <small>Pick up where you left off</small>
           </div>
           <ArrowRight size={20} />
         </button>

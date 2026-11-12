@@ -93,7 +93,7 @@ export function EnginePanel({
               ? positionStatus
               : enabled
                 ? status
-                : "Engine paused. Resume when you’re ready."}
+                : "Tap Analyze when you’re ready."}
           </p>
         )}
       </div>

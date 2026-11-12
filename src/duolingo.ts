@@ -563,7 +563,7 @@ export async function recognizeDuolingoScreenshot(
       "Coordinate labels conflict with tracked orientation; review the screenshot crop.",
     );
     throw new RecognitionFailure(
-      "Coordinate labels and tracked game disagree. Stop tracking or adjust the board crop before rescanning.",
+      "Coordinate labels and tracked game disagree. Check the crop, or stop tracking if this is a different game.",
       diagnostics,
     );
   }
@@ -616,7 +616,7 @@ export async function recognizeDuolingoScreenshot(
     };
   if (!best.valid)
     throw new RecognitionFailure(
-      "Piece matches remain inconsistent. Adjust the crop or use the original full-resolution screenshot; no board has been guessed.",
+      "Some pieces still don’t fit a legal board. Try adjusting the crop or using the original screenshot at full size.",
       diagnostics,
     );
   const uncertainSquares = best.hits.flatMap((hit, index) => {

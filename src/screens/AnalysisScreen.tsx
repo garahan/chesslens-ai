@@ -61,12 +61,12 @@ export function AnalysisScreen({
         />
         <details className="history-card">
           <summary>
-            Move history <span>{navigation.index} ply</span>
+            Move history <span>{navigation.index} half-moves</span>
           </summary>
           <p>
             {past.length
               ? past.join(" · ")
-              : "Make a move to start exploring variations."}
+              : "Tap a piece, then a square to try a move."}
           </p>
         </details>
       </details>

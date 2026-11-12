@@ -13,11 +13,11 @@ export function UpdateButton() {
   }, []);
   const check = async () => {
     if (import.meta.env.DEV) {
-      setState("Updates apply after publishing");
+      setState("You’re using the local development version");
       return;
     }
     if (!navigator.onLine) {
-      setState("Connect to check for updates");
+      setState("Go online to check for updates");
       return;
     }
     setState("Checking…");
@@ -28,17 +28,17 @@ export function UpdateButton() {
       if (!mounted.current) return;
       const worker = registration.installing || registration.waiting;
       if (!worker) {
-        setState("Reload latest app");
+        setState("Reload app");
         setReload(true);
         return;
       }
       const change = () => {
         if (!mounted.current) return;
         if (worker.state === "activated") {
-          setState("Reload latest app");
+          setState("Reload app");
           setReload(true);
         } else if (worker.state === "redundant")
-          setState("Update failed · try again");
+          setState("Couldn’t download the update. Try again");
         else setState("Downloading update…");
       };
       worker.addEventListener("statechange", change);
@@ -47,7 +47,7 @@ export function UpdateButton() {
       );
       change();
     } catch {
-      if (mounted.current) setState("Update unavailable · try again");
+      if (mounted.current) setState("Couldn’t check for updates. Try again");
     }
   };
   return (
