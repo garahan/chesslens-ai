@@ -1,4 +1,4 @@
-import { Check, RotateCcw, SunMoon, ScanLine } from "lucide-react";
+import { Check, RotateCcw, SunMoon } from "lucide-react";
 import { useAppearance } from "../../appearance";
 import {
   APP_THEMES,
@@ -21,7 +21,7 @@ function LookPreview({ look }: { look: Appearance }) {
       aria-hidden="true"
     >
       <div className="look-mini-header">
-        <ScanLine size={10} />
+        <img src="/icons/icon.svg" width={12} height={12} alt="" />
         <span />
         <i />
       </div>

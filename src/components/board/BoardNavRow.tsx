@@ -4,7 +4,7 @@ import {
   ChevronRight,
   ChevronsRight,
   RotateCcw,
-  FlipVertical,
+  ArrowDownUp,
 } from "lucide-react";
 export function BoardNavRow({
   index,
@@ -25,9 +25,10 @@ export function BoardNavRow({
         <button
           className="icon-button"
           aria-label="Flip board"
+          title="Flip board"
           onClick={onFlip}
         >
-          <FlipVertical size={18} />
+          <ArrowDownUp size={18} />
         </button>
       )}
       {[
@@ -60,15 +61,17 @@ export function BoardNavRow({
           key={label}
           className="icon-button"
           aria-label={label}
+          title={label}
           disabled={disabled}
           onClick={() => onNavigate(target)}
         >
-          <Icon size={22} />
+          <Icon size={20} />
         </button>
       ))}
       <button
         className="icon-button"
         aria-label="Reset position"
+        title="Reset position"
         onClick={onReset}
       >
         <RotateCcw size={19} />

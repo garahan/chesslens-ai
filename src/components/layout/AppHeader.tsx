@@ -1,4 +1,4 @@
-import { ArrowLeft, SlidersHorizontal, ScanLine } from "lucide-react";
+import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { SoundButton } from "../inputs/SoundControls";
 export function AppHeader({
   onBack,
@@ -23,7 +23,7 @@ export function AppHeader({
         )}
         <div className="brand">
           <span className="logo">
-            <ScanLine size={20} />
+            <img src="/icons/icon.svg" width={32} height={32} alt="" />
           </span>
           <h1>
             ChessLens <span>AI</span>

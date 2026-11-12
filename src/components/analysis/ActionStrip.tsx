@@ -42,7 +42,7 @@ export function ActionStrip({
         ))}
       </div>
       <button className="primary" onClick={onAnalyze} disabled={disabled}>
-        <Play size={16} fill="currentColor" />
+        <Play size={18} fill="currentColor" />
         Analyze
       </button>
     </div>
