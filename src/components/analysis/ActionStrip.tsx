@@ -4,7 +4,6 @@ export function ActionStrip({
   onTurn,
   onAnalyze,
   disabled,
-  active,
 }: {
   turn: "w" | "b" | null;
   onTurn: (turn: "w" | "b") => void;
@@ -14,23 +13,22 @@ export function ActionStrip({
 }) {
   return (
     <div className="action-strip">
-      <label className="turn-badge">
-        <span className={"turn-dot " + (turn === "b" ? "black" : "")} />
-        <select
-          aria-label="Side to move"
-          value={turn || ""}
-          onChange={(e) => onTurn(e.target.value as "w" | "b")}
-        >
-          <option value="" disabled>
-            Choose turn
-          </option>
-          <option value="w">White to move</option>
-          <option value="b">Black to move</option>
-        </select>
-      </label>
+      <div className="turn-choice" role="group" aria-label="Side to move">
+        {(["w", "b"] as const).map((side) => (
+          <button
+            key={side}
+            aria-label={side === "w" ? "White to move" : "Black to move"}
+            aria-pressed={turn === side}
+            onClick={() => onTurn(side)}
+          >
+            <span className={"turn-dot " + (side === "b" ? "black" : "")} />
+            {side === "w" ? "White" : "Black"}
+          </button>
+        ))}
+      </div>
       <button className="primary" onClick={onAnalyze} disabled={disabled}>
-        <Play size={17} fill="currentColor" />
-        {active ? "Analyze again" : "Analyze"}
+        <Play size={16} fill="currentColor" />
+        Analyze
       </button>
     </div>
   );

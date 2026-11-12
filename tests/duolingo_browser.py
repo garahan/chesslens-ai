@@ -32,15 +32,12 @@ with sync_playwright() as p:
  x,y,w,h=map(float,source.get_attribute('viewBox').split())
  assert abs(x-3*588/8)<1
  assert 425<y<432
- page.get_by_role('button',name='Edit piece',exact=True).click()
  page.get_by_role('button',name='Set square empty',exact=True).click()
  assert page.get_by_role('button',name='Analyze',exact=True).is_disabled()
- page.get_by_role('button',name='Edit piece',exact=True).click()
+ page.get_by_role('button',name='Review e1',exact=True).click()
  page.get_by_role('button',name='Set square to K',exact=True).click()
  assert page.locator('.editorfen').text_content().split(' ')[0]==expected
- page.get_by_role('button',name='Piece is correct',exact=False).click()
- page.get_by_role('combobox',name='Side to move').select_option('b')
- page.get_by_role('checkbox',name='I verified the piece positions and orientation.').check()
+ page.get_by_role('button',name='Black to move',exact=True).click()
  page.get_by_role('button',name='Analyze',exact=True).click()
  page.locator('.variation').first.wait_for(timeout=60000)
  assert page.locator('#fen-input').input_value().startswith(expected+' b ')

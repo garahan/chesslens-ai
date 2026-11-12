@@ -1,19 +1,27 @@
-import { Camera, ImagePlus } from "lucide-react";
+import { Camera, ImagePlus, SlidersHorizontal } from "lucide-react";
 export function FloatingActions({
   onGallery,
   onCamera,
+  onMore,
 }: {
   onGallery: () => void;
   onCamera: () => void;
+  onMore: () => void;
 }) {
   return (
-    <div className="floating-actions">
+    <nav className="action-dock" aria-label="Quick tools">
       <button aria-label="Choose another image" onClick={onGallery}>
-        <ImagePlus size={23} />
+        <ImagePlus size={20} />
+        <span>Image</span>
       </button>
       <button aria-label="Open camera" onClick={onCamera}>
-        <Camera size={23} />
+        <Camera size={20} />
+        <span>Camera</span>
       </button>
-    </div>
+      <button aria-label="More tools" onClick={onMore}>
+        <SlidersHorizontal size={20} />
+        <span>Tools</span>
+      </button>
+    </nav>
   );
 }

@@ -1,0 +1,133 @@
+import { useEffect, useState } from "react";
+import { CloudDownload, WifiOff, CheckCircle2 } from "lucide-react";
+export function OfflineStatus() {
+  const [online, setOnline] = useState(navigator.onLine);
+  const [state, setState] = useState<
+    "preparing" | "ready" | "failed" | "development"
+  >(!import.meta.env.DEV ? "preparing" : "development");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+  useEffect(() => {
+    if (!!import.meta.env.DEV) return;
+    if (!("serviceWorker" in navigator)) {
+      setState("failed");
+      return;
+    }
+    let cancelled = false;
+    let timer: number | undefined;
+    const cleanups: (() => void)[] = [];
+    const ready = () => {
+      const worker = navigator.serviceWorker.controller;
+      if (!worker) return;
+      const channel = new MessageChannel();
+      const expiry = window.setTimeout(() => {
+        channel.port1.close();
+        if (!cancelled) setState("failed");
+      }, 120000);
+      cleanups.push(() => {
+        clearTimeout(expiry);
+        channel.port1.close();
+      });
+      channel.port1.onmessage = (event) => {
+        clearTimeout(expiry);
+        channel.port1.close();
+        if (!cancelled) {
+          setState(event.data.ready ? "ready" : "failed");
+          window.clearTimeout(timer);
+        }
+      };
+      worker.postMessage(
+        { type: attempt ? "PREPARE_OFFLINE" : "CHECK_OFFLINE" },
+        [channel.port2],
+      );
+    };
+    const change = () => {
+      if (navigator.serviceWorker.controller) ready();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", change);
+    navigator.serviceWorker
+      .register("/sw.js", { updateViaCache: "none" })
+      .then((registration) => {
+        if (cancelled) return;
+        if (registration.active && navigator.serviceWorker.controller) ready();
+        const track = () => {
+          const worker = registration.installing;
+          if (!worker) return;
+          const update = () => {
+            if (worker.state === "activated") ready();
+            if (
+              worker.state === "redundant" &&
+              !navigator.serviceWorker.controller
+            )
+              setState("failed");
+          };
+          worker.addEventListener("statechange", update);
+          cleanups.push(() =>
+            worker.removeEventListener("statechange", update),
+          );
+          update();
+        };
+        registration.addEventListener("updatefound", track);
+        cleanups.push(() =>
+          registration.removeEventListener("updatefound", track),
+        );
+        track();
+      })
+      .catch(() => {
+        if (!cancelled) setState("failed");
+      });
+    timer = window.setTimeout(() => {
+      if (!cancelled)
+        setState((current) => (current === "ready" ? current : "failed"));
+    }, 120000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      navigator.serviceWorker.removeEventListener("controllerchange", change);
+      cleanups.forEach((clean) => clean());
+    };
+  }, [attempt]);
+  const label =
+    state === "ready"
+      ? online
+        ? "Ready offline"
+        : "Offline · ready"
+      : state === "development"
+        ? "On-device analysis"
+        : state === "failed"
+          ? "Offline download incomplete"
+          : "Preparing offline…";
+  return (
+    <div className="offline-status" role="status">
+      {state === "ready" ? (
+        online ? (
+          <CheckCircle2 size={14} />
+        ) : (
+          <WifiOff size={14} />
+        )
+      ) : (
+        <CloudDownload size={14} />
+      )}
+      <span>{label}</span>
+      {state === "failed" && (
+        <button
+          className="text-button"
+          onClick={() => {
+            setState("preparing");
+            setAttempt((n) => n + 1);
+          }}
+        >
+          Retry
+        </button>
+      )}
+    </div>
+  );
+}

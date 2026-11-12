@@ -1,3 +1,4 @@
+import { OfflineStatus } from "./components/layout/OfflineStatus";
 import { ChessPiece } from "./components/board/ChessPiece";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Chess, type Move } from "chess.js";
@@ -12,12 +13,21 @@ import { ScanReviewScreen } from "./screens/ScanReviewScreen";
 import { AnalysisScreen } from "./screens/AnalysisScreen";
 import "./styles/tokens.css";
 import "./styles/app.css";
+function savedPosition() {
+  try {
+    const value = localStorage.getItem("chesslens-last-position");
+    return value ? new Chess(value).fen() : null;
+  } catch {
+    return null;
+  }
+}
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 type AppMode = "home" | "review" | "analysis";
 export default function App() {
+  const [restored] = useState(savedPosition);
   const [scanFile, setScanFile] = useState<File | null>(null);
-  const [fenInput, setFenInput] = useState(START),
-    [history, setHistory] = useState<string[]>([START]),
+  const [fenInput, setFenInput] = useState(restored || START),
+    [history, setHistory] = useState<string[]>([restored || START]),
     [index, setIndex] = useState(0),
     [selected, setSelected] = useState<string | null>(null),
     [flipped, setFlipped] = useState(false),
@@ -37,13 +47,20 @@ export default function App() {
         return null;
       }
     }),
-    [hasPosition, setHasPosition] = useState(false),
+    [hasPosition, setHasPosition] = useState(!!restored),
     [analysisRun, setAnalysisRun] = useState(0);
   const cameraRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null),
     engineRef = useRef<ChessEngine | null>(null);
   const fen = history[index],
     board = useMemo(() => new Chess(fen), [fen]);
+  useEffect(() => {
+    if (hasPosition) {
+      try {
+        localStorage.setItem("chesslens-last-position", fen);
+      } catch {}
+    }
+  }, [fen, hasPosition]);
   const moves = useMemo(
     () =>
       selected ? board.moves({ square: selected as never, verbose: true }) : [],
@@ -184,6 +201,9 @@ export default function App() {
     }
   };
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [mode]);
+  useEffect(() => {
     setFenInput(fen);
   }, [fen]);
   useEffect(() => {
@@ -200,16 +220,7 @@ export default function App() {
     <AppShell>
       <AppHeader
         onBack={() => setMode("home")}
-        onShare={() => {
-          if (navigator.share)
-            navigator
-              .share({ title: "ChessLens position", text: fen })
-              .catch(() => {});
-          else copy(fen);
-        }}
         onMore={() => setSettings(true)}
-        favorite={favorite}
-        onFavorite={toggleFavorite}
       />
       <main className="main-content">
         <input
@@ -239,6 +250,7 @@ export default function App() {
             onCamera={() => cameraRef.current?.click()}
             onManual={() => {
               setMode("analysis");
+              setHasPosition(true);
               setEngineOn(false);
             }}
             recent={hasPosition}
@@ -299,6 +311,7 @@ export default function App() {
             past={past}
           />
         )}
+        <OfflineStatus />
         {error && (
           <div className="toast" role="status">
             <span>{error}</span>
@@ -316,6 +329,7 @@ export default function App() {
         <FloatingActions
           onGallery={() => inputRef.current?.click()}
           onCamera={() => cameraRef.current?.click()}
+          onMore={() => setSettings(true)}
         />
       )}
       {settings && (
@@ -366,6 +380,14 @@ export default function App() {
             >
               Open starting position
             </button>
+            <div className="install-help">
+              <strong>Use from your Home Screen</strong>
+              <p>
+                In Safari: Share → Add to Home Screen. Open the new icon online
+                once and wait for “Ready offline” before disconnecting. iOS may
+                clear saved data if storage is low.
+              </p>
+            </div>
             <p>
               ChessLens AI · Stockfish 19
               <br />

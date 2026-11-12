@@ -2,7 +2,7 @@
 
 React / Vite mobile chess position analyzer. The Duolingo-specific screenshot recognition path identifies chessboards with Duolingo's teal grid, matches the distinctive piece silhouettes to lightweight numeric references, handles both board orientations and flags uncertain squares for manual review. It falls back to a general browser-side ONNX recognizer for other chess screenshots, then sends a validated FEN to Stockfish.
 
-**Limits:** Duolingo detection is calibrated with six user-provided examples, not independently validated on unseen screenshots or iPhone Safari. A later regression fix verifies all 64 squares in the supplied failing screenshot, adds board-boundary checks and original-square comparison. This does not establish universal accuracy. No computer vision algorithm guarantees 100% accuracy; the app requires review of the board and confirmation of the side to move.
+**Limits:** Duolingo detection is calibrated with six user-provided examples, not independently validated on unseen screenshots or iPhone Safari. A later regression fix verifies all 64 squares in the supplied failing screenshot, adds board-boundary checks and original-square comparison. This does not establish universal accuracy. No computer vision algorithm guarantees 100% accuracy; choose the side to move before analysis; original-image comparison and corrections are available without a verification checkbox.
 
 ### Build
 ```bash
@@ -21,3 +21,7 @@ lavender board, compact engine variations, and camera/gallery shortcuts.
 Manual corrections and castling controls live behind secondary controls.
 See [UI structure and verification notes](docs/ui-refactor.md) for details and
 optional browser checks.
+
+### Offline / iPhone Home Screen
+
+Open once online and wait for **Ready offline** (about 33 MB initially). In Safari use **Share → Add to Home Screen**, then open the new icon online once and wait for **Ready offline** there too. The app, both scanners, and Stockfish work locally without a network connection after download. The last position is saved on the device. iOS may evict website storage; use Retry if the offline download is incomplete.

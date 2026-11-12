@@ -1,3 +1,4 @@
+import { Modal } from "./components/layout/Modal";
 import { ChessPiece } from "./components/board/ChessPiece";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
@@ -52,12 +53,10 @@ export function ScanEditor({
   const requestRef = useRef(0);
   const boardRef = useRef<HTMLDivElement>(null);
   const [showOriginal, setShowOriginal] = useState(false);
-  const [quickEdit, setQuickEdit] = useState(false);
   const [manuallyEdited, setManuallyEdited] = useState(false);
   const [editing, setEditing] = useState(false),
     [focusedSquare, setFocusedSquare] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState(false),
-    [turnConfirmed, setTurnConfirmed] = useState(false),
+  const [turnConfirmed, setTurnConfirmed] = useState(false),
     [uncertain, setUncertain] = useState<string[]>([]),
     [pieces, setPieces] = useState<string[]>(starting),
     [selected, setSelected] = useState("P"),
@@ -80,11 +79,10 @@ export function ScanEditor({
       return;
     }
     setScanning(true);
-    setConfirmed(false);
     setTurnConfirmed(false);
     setFocusedSquare(null);
     setShowOriginal(false);
-    setQuickEdit(false);
+
     setError("");
     setResult(null);
     try {
@@ -100,7 +98,6 @@ export function ScanEditor({
       setManuallyEdited(false);
       setCastling([]);
       setUncertain(detected.uncertainSquares || []);
-      setConfirmed(false);
       setTurnConfirmed(false);
     } catch (e) {
       if (request !== requestRef.current) return;
@@ -114,7 +111,6 @@ export function ScanEditor({
   useEffect(() => {
     setResult(null);
     setError("");
-    setConfirmed(false);
     setTurnConfirmed(false);
     setUncertain([]);
     const timer = window.setTimeout(() => void detect(), 0);
@@ -123,16 +119,9 @@ export function ScanEditor({
       requestRef.current++;
     };
   }, [detect]);
-  const reviewSquare = (n: number) => {
-    const idx = orientation === "white" ? n : 63 - n;
-    const name = "abcdefgh"[idx % 8] + (8 - Math.floor(idx / 8));
-    setUncertain((old) => old.filter((s) => s !== name));
-  };
   const analyze = () => {
     try {
-      if (!confirmed) throw Error("Review and confirm the board");
       if (!turnConfirmed) throw Error("Select whose turn it is");
-      if (uncertain.length) throw Error("Review highlighted uncertain squares");
       if (issues.errors.length) throw Error(issues.errors.join("; "));
       const board = new Chess(fen);
       if (!board.isGameOver() && !board.moves().length)
@@ -149,21 +138,9 @@ export function ScanEditor({
     !scanning &&
     (!!result || manuallyEdited) &&
     turnConfirmed &&
-    confirmed &&
-    !uncertain.length &&
     !issues.errors.length;
   return (
     <div className="scaneditor">
-      <ActionStrip
-        turn={turnConfirmed ? turn : null}
-        onTurn={(value) => {
-          setTurn(value);
-          setTurnConfirmed(true);
-          setConfirmed(false);
-        }}
-        onAnalyze={analyze}
-        disabled={!canAnalyze}
-      />
       {scanning ? (
         <div className="scan-progress" role="status">
           <span className="scanner-spinner" />
@@ -172,26 +149,6 @@ export function ScanEditor({
         </div>
       ) : (
         <>
-          {result?.boardCrop && (
-            <div
-              className="board-compare"
-              role="group"
-              aria-label="Board comparison"
-            >
-              <button
-                aria-pressed={!showOriginal}
-                onClick={() => setShowOriginal(false)}
-              >
-                Recognized board
-              </button>
-              <button
-                aria-pressed={showOriginal}
-                onClick={() => setShowOriginal(true)}
-              >
-                Original screenshot
-              </button>
-            </div>
-          )}
           {showOriginal && result?.boardCrop ? (
             <div className="source-board-card">
               <SourceBoard
@@ -215,7 +172,6 @@ export function ScanEditor({
                     aria-label={`${editing ? "Edit" : "Review"} ${"abcdefgh"[idx % 8]}${8 - Math.floor(idx / 8)}`}
                     onClick={() => {
                       if (!editing) {
-                        setQuickEdit(false);
                         setFocusedSquare(
                           "abcdefgh"[idx % 8] + (8 - Math.floor(idx / 8)),
                         );
@@ -225,7 +181,6 @@ export function ScanEditor({
                       setPieces((old) =>
                         old.map((value, i) => (i === idx ? selected : value)),
                       );
-                      setConfirmed(false);
                       const name =
                         "abcdefgh"[idx % 8] + (8 - Math.floor(idx / 8));
                       setUncertain((old) => old.filter((s) => s !== name));
@@ -243,7 +198,46 @@ export function ScanEditor({
               })}
             </div>
           )}
-          <div className="review-card">
+          <ActionStrip
+            turn={turnConfirmed ? turn : null}
+            onTurn={(value) => {
+              setTurn(value);
+              setTurnConfirmed(true);
+            }}
+            onAnalyze={analyze}
+            disabled={!canAnalyze}
+          />
+          {result?.boardCrop && (
+            <div
+              className="board-compare"
+              role="group"
+              aria-label="Board comparison"
+            >
+              <button
+                aria-pressed={!showOriginal}
+                onClick={() => setShowOriginal(false)}
+              >
+                Recognized board
+              </button>
+              <button
+                aria-pressed={showOriginal}
+                onClick={() => setShowOriginal(true)}
+              >
+                Original screenshot
+              </button>
+            </div>
+          )}
+          <details
+            className="review-card"
+            open={uncertain.length > 0 || issues.errors.length > 0 || !result}
+          >
+            <summary>
+              {uncertain.length
+                ? `${uncertain.length} uncertain squares · tap to edit`
+                : result
+                  ? `Scan ${Math.round(result.meanConfidence * 100)}% · details`
+                  : "Scanner details"}
+            </summary>
             <div className="review-card-title">
               <strong>
                 {result
@@ -271,8 +265,8 @@ export function ScanEditor({
                   {uncertain.length
                     ? `${uncertain.length} squares need a closer look.`
                     : result.reliable
-                      ? "Board recognized. Check the pieces and confirm below."
-                      : "Low confidence. Check every piece before continuing."}
+                      ? "Tap any square to change a piece."
+                      : "Low match quality. Compare with the original if needed."}
                 </p>
               </>
             )}
@@ -284,7 +278,7 @@ export function ScanEditor({
                     className={focusedSquare === square ? "chosen" : ""}
                     onClick={() => {
                       setShowOriginal(false);
-                      setQuickEdit(false);
+
                       setFocusedSquare(square);
                       boardRef.current?.scrollIntoView({
                         block: "start",
@@ -298,9 +292,29 @@ export function ScanEditor({
                 ))}
               </div>
             )}
-            {focusedSquare && (
-              <div className="square-review">
-                <strong>Review {focusedSquare}</strong>
+            <button
+              className="text-button editor-toggle"
+              aria-expanded={editing}
+              onClick={() => setEditing((v) => !v)}
+            >
+              {editing ? "Done editing" : "Edit board & orientation"}
+            </button>
+          </details>
+          {focusedSquare && (
+            <Modal
+              label={`Edit ${focusedSquare}`}
+              onDismiss={() => setFocusedSquare(null)}
+            >
+              <section className="modal correction-sheet">
+                <div className="modal-heading">
+                  <h2>{focusedSquare}</h2>
+                  <button
+                    className="text-button"
+                    onClick={() => setFocusedSquare(null)}
+                  >
+                    Done
+                  </button>
+                </div>
                 {result?.boardCrop && (
                   <div className="square-comparison">
                     <div>
@@ -323,73 +337,41 @@ export function ScanEditor({
                           }
                         />
                       </span>
-                      <small>Recognized</small>
+                      <small>Current</small>
                     </div>
                   </div>
                 )}
-                <button
-                  className="secondary"
-                  onClick={() => {
-                    const idx =
-                      (8 - Number(focusedSquare[1])) * 8 +
-                      "abcdefgh".indexOf(focusedSquare[0]);
-                    reviewSquare(orientation === "white" ? idx : 63 - idx);
-                    setFocusedSquare(null);
-                  }}
-                >
-                  ✓ Piece is correct
-                </button>
-                <button
-                  className="text-button"
-                  onClick={() => {
-                    setQuickEdit((v) => !v);
-                  }}
-                >
-                  {quickEdit ? "Close piece picker" : "Edit piece"}
-                </button>
-                {quickEdit && (
-                  <div className="quick-piece-picker">
-                    <p>Tap the correct piece for {focusedSquare}.</p>
-                    <div className="piecepalette">
-                      {palette.map((piece) => (
-                        <button
-                          key={piece}
-                          aria-label={
-                            piece === "."
-                              ? "Set square empty"
-                              : `Set square to ${piece}`
-                          }
-                          onClick={() => {
-                            const idx =
-                              (8 - Number(focusedSquare[1])) * 8 +
-                              "abcdefgh".indexOf(focusedSquare[0]);
-                            setPieces((old) =>
-                              old.map((p, i) => (i === idx ? piece : p)),
-                            );
-                            setUncertain((old) =>
-                              old.filter((s) => s !== focusedSquare),
-                            );
-                            setManuallyEdited(true);
-                            setConfirmed(false);
-                            setQuickEdit(false);
-                          }}
-                        >
-                          {piece === "." ? "×" : <ChessPiece piece={piece} />}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            <button
-              className="text-button editor-toggle"
-              aria-expanded={editing}
-              onClick={() => setEditing((v) => !v)}
-            >
-              {editing ? "Done editing" : "Edit board & orientation"}
-            </button>
-          </div>
+                <p>Tap a piece to replace this square.</p>
+                <div className="piecepalette">
+                  {palette.map((piece) => (
+                    <button
+                      key={piece}
+                      aria-label={
+                        piece === "."
+                          ? "Set square empty"
+                          : `Set square to ${piece}`
+                      }
+                      onClick={() => {
+                        const idx =
+                          (8 - Number(focusedSquare[1])) * 8 +
+                          "abcdefgh".indexOf(focusedSquare[0]);
+                        setPieces((old) =>
+                          old.map((p, i) => (i === idx ? piece : p)),
+                        );
+                        setUncertain((old) =>
+                          old.filter((s) => s !== focusedSquare),
+                        );
+                        setManuallyEdited(true);
+                        setFocusedSquare(null);
+                      }}
+                    >
+                      {piece === "." ? "×" : <ChessPiece piece={piece} />}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </Modal>
+          )}
           {editing && (
             <div className="manual-editor">
               <p>Choose a piece, then tap a square to place it.</p>
@@ -399,7 +381,6 @@ export function ScanEditor({
                   value={orientation}
                   onChange={(e) => {
                     setOrientation(e.target.value as "white" | "black");
-                    setConfirmed(false);
                   }}
                 >
                   <option value="white">White at bottom</option>
@@ -425,7 +406,6 @@ export function ScanEditor({
                     setPieces(Array(64).fill("."));
                     setManuallyEdited(true);
                     setUncertain([]);
-                    setConfirmed(false);
                   }}
                 >
                   Clear board
@@ -435,7 +415,6 @@ export function ScanEditor({
                     setPieces([...starting]);
                     setManuallyEdited(true);
                     setUncertain([]);
-                    setConfirmed(false);
                   }}
                 >
                   Starting position
@@ -452,7 +431,6 @@ export function ScanEditor({
                             : p.toUpperCase(),
                       ),
                     );
-                    setConfirmed(false);
                   }}
                 >
                   Swap colors
@@ -481,7 +459,6 @@ export function ScanEditor({
                     type="checkbox"
                     checked={castling.includes(key)}
                     onChange={(e) => {
-                      setConfirmed(false);
                       setCastling((old) =>
                         e.target.checked
                           ? [...old, key]
@@ -502,24 +479,6 @@ export function ScanEditor({
           {issues.warnings.length > 0 && (
             <div className="recognitionCard">
               Review: {issues.warnings.join("; ")}
-            </div>
-          )}
-          {(result || manuallyEdited) && (
-            <div className="reviewConfirmation">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={confirmed}
-                  onChange={(e) => setConfirmed(e.target.checked)}
-                />{" "}
-                I verified the piece positions and orientation.
-              </label>
-              <span>
-                {turnConfirmed
-                  ? "Side to move confirmed."
-                  : "Choose White or Black in Side to move above."}{" "}
-                A screenshot alone cannot always identify the turn.
-              </span>
             </div>
           )}
           <details className="fen-section">

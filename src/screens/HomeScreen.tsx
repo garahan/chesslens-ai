@@ -21,14 +21,6 @@ export function HomeScreen({
 }) {
   return (
     <section className="home-screen">
-      <div className="home-heading">
-        <span className="eyebrow">A CLEARER NEXT MOVE</span>
-        <h2>
-          Your board.
-          <br />A fresh perspective.
-        </h2>
-        <p>Turn a screenshot into your next best move.</p>
-      </div>
       <div className="upload-card">
         <div className="scan-illustration">
           <ScanLine size={68} strokeWidth={1.2} />
@@ -56,19 +48,6 @@ export function HomeScreen({
         <br />
         and Duolingo Chess
       </p>
-      <div className="workflow">
-        <span>
-          <b>1</b> Import
-        </span>
-        <i />
-        <span>
-          <b>2</b> Review
-        </span>
-        <i />
-        <span>
-          <b>3</b> Analyze
-        </span>
-      </div>
       {recent && (
         <button className="recent-card" onClick={onRecent}>
           <span>

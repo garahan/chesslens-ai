@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { FlipVertical } from "lucide-react";
+
 import { ActionStrip } from "../components/analysis/ActionStrip";
 import { EnginePanel } from "../components/analysis/EnginePanel";
 import { ChessBoardCard } from "../components/board/ChessBoardCard";
@@ -26,45 +26,32 @@ export function AnalysisScreen({
   onFlip,
   past,
 }: AnalysisScreenProps) {
-  const position = board.board;
   return (
     <div className="analysis-screen">
+      <div className="board-section">
+        <ChessBoardCard {...board} />
+        <BoardNavRow {...navigation} onFlip={onFlip} />
+      </div>
       <ActionStrip
-        turn={position.turn()}
+        turn={board.board.turn()}
         onTurn={onTurn}
         onAnalyze={onAnalyze}
         active={engine.enabled}
       />
-      <div className="board-section">
-        <ChessBoardCard {...board} />
-        <BoardNavRow {...navigation} />
-      </div>
-      <div className="position-caption">
-        <span>
-          {position.isCheckmate()
-            ? "Checkmate"
-            : position.isDraw()
-              ? "Draw"
-              : position.isCheck()
-                ? "King in check"
-                : "Tap a piece to explore a move"}
-        </span>
-        <button className="text-button" onClick={onFlip}>
-          <FlipVertical size={15} />
-          Flip board
-        </button>
-      </div>
       <EnginePanel {...engine} />
-      <FenBar {...fenInput} />
-      <details className="history-card">
-        <summary>
-          Move history <span>{navigation.index} ply</span>
-        </summary>
-        <p>
-          {past.length
-            ? past.join(" · ")
-            : "Make a move to start exploring variations."}
-        </p>
+      <details className="position-tools">
+        <summary>Position tools & history</summary>
+        <FenBar {...fenInput} />
+        <details className="history-card">
+          <summary>
+            Move history <span>{navigation.index} ply</span>
+          </summary>
+          <p>
+            {past.length
+              ? past.join(" · ")
+              : "Make a move to start exploring variations."}
+          </p>
+        </details>
       </details>
     </div>
   );

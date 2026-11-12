@@ -4,20 +4,32 @@ import {
   ChevronRight,
   ChevronsRight,
   RotateCcw,
+  FlipVertical,
 } from "lucide-react";
 export function BoardNavRow({
   index,
   length,
   onNavigate,
   onReset,
+  onFlip,
 }: {
   index: number;
   length: number;
   onNavigate: (index: number) => void;
   onReset: () => void;
+  onFlip?: () => void;
 }) {
   return (
     <nav className="board-nav" aria-label="Move navigation">
+      {onFlip && (
+        <button
+          className="icon-button"
+          aria-label="Flip board"
+          onClick={onFlip}
+        >
+          <FlipVertical size={18} />
+        </button>
+      )}
       {[
         {
           Icon: ChevronsLeft,
