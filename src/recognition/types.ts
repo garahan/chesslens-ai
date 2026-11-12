@@ -1,3 +1,5 @@
+import type { Anatomy } from "./structure";
+import type { CoordinateEvidence } from "./coordinates";
 import type { BoardCrop } from "../duolingo";
 import type { PieceSample } from "./features";
 import type { TemporalMatch } from "./tracking";
@@ -8,6 +10,10 @@ export type SquareDiagnostic = {
   secondary: { piece: string; activation: number };
   agreed: boolean;
   personal: boolean;
+  refined?: boolean;
+  anatomy?: Anatomy;
+  consensusSeeds?: string[];
+  reconstructionError?: number | null;
 };
 export type RecognitionDiagnostics = {
   version: 1;
@@ -24,6 +30,19 @@ export type RecognitionDiagnostics = {
     objective: number;
   }[];
   selectedCrop?: BoardCrop;
+  processing?: {
+    clearFirstPass: number;
+    refined: string[];
+    deferred: number;
+    consensusSeeds: number;
+  };
+  reconstruction?: {
+    checked: number;
+    meanResidual: number | null;
+    outliers: string[];
+  };
+  coordinates?: CoordinateEvidence;
+  orientationSource?: "coordinates" | "tracked-game" | "piece-layout";
   tiles: SquareDiagnostic[];
   tracking?: { matched: boolean; moves?: string[] };
   notes: string[];
@@ -38,6 +57,7 @@ export class RecognitionFailure extends Error {
 }
 export type RecognitionExtras = {
   reviewRequiredSquares?: string[];
+  reconstructionImage?: string;
   diagnostics?: RecognitionDiagnostics;
   learningTiles?: Record<string, PieceSample>;
   temporal?: TemporalMatch;

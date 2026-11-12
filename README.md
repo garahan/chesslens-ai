@@ -1,8 +1,8 @@
-# ChessLens AI v0.7.1 — Duolingo Chess scanner
+# ChessLens AI v0.8.0 — Duolingo Chess scanner
 
 React / Vite mobile chess position analyzer. The Duolingo-specific screenshot recognition path identifies chessboards with Duolingo's teal grid, matches the distinctive piece silhouettes to lightweight numeric references, handles both board orientations and flags uncertain squares for manual review. A general browser-side ONNX recognizer is available through an explicit General/Auto selection for other chess screenshots. Validated FEN positions are analyzed by Stockfish.
 
-**Recognition 0.7.1:** Duolingo is the default for each import. Reference alignment and promotion-aware ranking reduce queen/rook substitutions; ambiguous extra material requires focused correction before analysis. Includes native-resolution references, multiple crop candidates, opt-in correction learning with Undo/Reset, legal game-continuation matching, and an experimental offline second reader. See [implementation, benchmark and data limits](docs/recognition.md).
+**Recognition 0.8.0:** Duolingo remains the default. Adds background/highlight separation, piece anatomy and size checks, frozen votes from clear matching pieces in the current image, a foreground reconstruction preview, coordinate-based orientation when labels are readable, and selective high-resolution passes for difficult squares. Existing correction learning, game tracking, promotion-aware inference and offline analysis remain available. See [implementation, benchmark and data limits](docs/recognition.md).
 
 **Limits:** the available original and its five transformed variants pass 64/64 squares. They are one training source group, so unseen-image accuracy remains unmeasured. High-resolution bishop/queen examples are still missing. The second reader stays advisory until independent validation; visual match percentages are not accuracy guarantees. Choose the side to move unless a unique tracked game continuation provides it.
 

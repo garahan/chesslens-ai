@@ -442,7 +442,7 @@ export default function App() {
               </p>
             </div>
             <p>
-              ChessLens AI 0.7.1 · Stockfish 19
+              ChessLens AI 0.8.0 · Stockfish 19
               <br />
               Screenshot recognition runs on your device.
             </p>

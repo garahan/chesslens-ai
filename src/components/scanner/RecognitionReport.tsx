@@ -2,9 +2,11 @@ import type { RecognitionDiagnostics } from "../../recognition/types";
 export function RecognitionReport({
   report,
   onExportLabels,
+  reconstructionImage,
 }: {
   report: RecognitionDiagnostics | null;
   onExportLabels?: () => void;
+  reconstructionImage?: string;
 }) {
   if (!report) return null;
   const download = () => {
@@ -29,6 +31,51 @@ export function RecognitionReport({
         Second reader is experimental. Agreement is not a calibrated accuracy
         score.
       </p>
+      {report.processing && (
+        <p>
+          {report.processing.clearFirstPass} squares clear on the first pass ·{" "}
+          {report.processing.refined.length} received extra processing.
+          {report.processing.deferred > 0
+            ? ` ${report.processing.deferred} difficult squares remain for review.`
+            : ""}
+        </p>
+      )}
+      {report.coordinates && (
+        <p>
+          Orientation:{" "}
+          {report.orientationSource === "coordinates"
+            ? `${report.coordinates.matched} coordinate labels`
+            : report.orientationSource === "tracked-game"
+              ? "tracked game"
+              : "piece layout"}
+          .
+          {report.coordinates.orientation
+            ? ""
+            : ` ${report.coordinates.reason}.`}
+        </p>
+      )}
+      {report.reconstruction && (
+        <p>
+          Reconstruction compared {report.reconstruction.checked}/64 squares
+          against other examples.
+          {report.reconstruction.outliers.length
+            ? ` Differences at ${report.reconstruction.outliers.join(", ")}.`
+            : ""}
+        </p>
+      )}
+      {reconstructionImage && (
+        <figure className="reconstruction-preview">
+          <img
+            src={reconstructionImage}
+            alt="Reconstructed foreground board"
+            width={384}
+            height={384}
+          />
+          <figcaption>
+            Shape comparison. Hatched squares have no matching reference.
+          </figcaption>
+        </figure>
+      )}
       {report.tracking && (
         <p>
           {report.tracking.matched

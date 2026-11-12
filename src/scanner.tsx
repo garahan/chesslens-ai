@@ -678,6 +678,7 @@ export function ScanEditor({
           )}
           <RecognitionReport
             report={report}
+            reconstructionImage={result?.reconstructionImage}
             onExportLabels={
               result?.boardCrop ? () => void exportLabels() : undefined
             }

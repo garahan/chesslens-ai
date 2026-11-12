@@ -1,5 +1,14 @@
+import { refineStructure, type Anatomy } from "./recognition/structure.ts";
+import { frameConsensus } from "./recognition/consensus.ts";
+import {
+  reconstructPosition,
+  renderReconstruction,
+  type Reconstruction,
+} from "./recognition/reconstruction.ts";
+import { readCoordinates } from "./recognition/coordinates.ts";
+import { separateForeground, reduceMask } from "./recognition/foreground.ts";
 import { Chess } from "chess.js";
-import { extractFine, type PieceSample } from "./recognition/features.ts";
+import type { PieceSample } from "./recognition/features.ts";
 import { refineWithLibrary, libraryCoverage } from "./recognition/library.ts";
 import { readLearning } from "./recognition/learning.ts";
 import { secondRead, secondReaderInfo } from "./recognition/second-reader.ts";
@@ -101,58 +110,15 @@ export function locateBoard(
   return locateDuolingoGrid(pixels, width, height)?.y ?? null;
 }
 export function feature(image: ImageData, row: number, col: number) {
-  const pixels = image.data;
-  const size = 24;
-  const ox = col * size,
-    oy = row * size;
-  const at = (x: number, y: number) => {
-    const i = ((oy + y) * image.width + (ox + x)) * 4;
-    return [pixels[i], pixels[i + 1], pixels[i + 2]];
-  };
-  const border: number[][] = [];
-  for (let i = 3; i < 21; i++) {
-    border.push(at(1, i), at(22, i));
+  const data = new Uint8ClampedArray(24 * 24 * 4);
+  for (let y = 0; y < 24; y++) {
+    const start = ((row * 24 + y) * image.width + col * 24) * 4;
+    data.set(image.data.subarray(start, start + 24 * 4), y * 24 * 4);
   }
-  const bg = [0, 1, 2].map(
-    (channel) =>
-      border.map((p) => p[channel]).sort((a, b) => a - b)[
-        Math.floor(border.length / 2)
-      ],
-  );
-  const mask = new Float32Array(144);
-  let red = 0,
-    green = 0,
-    blue = 0,
-    count = 0;
-  for (let y = 0; y < 12; y++)
-    for (let x = 0; x < 12; x++) {
-      let total = 0;
-      // Downsample 24x24 to the 12x12 reference signature.
-      for (let dy = 0; dy < 2; dy++)
-        for (let dx = 0; dx < 2; dx++) {
-          const xx = x * 2 + dx,
-            yy = y * 2 + dy,
-            p = at(xx, yy);
-          const dist = Math.hypot(p[0] - bg[0], p[1] - bg[1], p[2] - bg[2]);
-          const strength =
-            xx < 2 || xx >= 22 || yy < 2 || yy >= 22
-              ? 0
-              : clamp((dist - 13) / 30, 0, 1);
-          total += strength;
-          if (strength > 0.7) {
-            red += p[0];
-            green += p[1];
-            blue += p[2];
-            count++;
-          }
-        }
-      mask[y * 12 + x] = total / 4;
-    }
-  return {
-    mask,
-    color: count ? [red / count, green / count, blue / count] : bg,
-  };
+  const foreground = separateForeground(data, 24);
+  return { mask: reduceMask(foreground.mask, 24), color: foreground.color };
 }
+
 export function classify(mask: Float32Array, color: number[]) {
   const candidates = new Map<string, number>();
   for (const prototype of prototypes) {
@@ -296,6 +262,12 @@ export async function recognizeDuolingoScreenshot(
     samples: PieceSample[];
     secondary: ReturnType<typeof secondRead>[];
     personal: boolean[];
+    anatomy: (Anatomy | null)[];
+    refined: number[];
+    clearCount: number;
+    deferred: number;
+    consensus: ReturnType<typeof frameConsensus>;
+    reconstruction: Reconstruction;
     adjusted: number[];
     promotionReview: number[];
     objective: number;
@@ -313,68 +285,186 @@ export async function recognizeDuolingoScreenshot(
         imageHeight: img.naturalHeight,
       },
       cell = crop.size / 8;
-    const hits: ReturnType<typeof combineMatches>[] = [],
-      samples: PieceSample[] = [],
-      secondary: ReturnType<typeof secondRead>[] = [],
-      personal: boolean[] = [];
-    for (let row = 0; row < 8; row++)
-      for (let col = 0; col < 8; col++) {
-        const x = crop.x + col * cell,
-          y = crop.y + row * cell;
-        const features = [
-          [0, 0],
+    type Tile = {
+      sample: PieceSample;
+      first: ReturnType<typeof feature>;
+      fine: ReturnType<typeof separateForeground>;
+      pixels: Uint8ClampedArray;
+      hit: ReturnType<typeof combineMatches>;
+      personal: boolean;
+      anatomy: Anatomy | null;
+    };
+    const records: Tile[] = [],
+      refined: number[] = [];
+    const update = (
+      base: ReturnType<typeof combineMatches>,
+      scores: Record<string, number>,
+      changed = false,
+    ) => {
+      const ranked = Object.entries(scores).sort((a, b) => a[1] - b[1]);
+      return {
+        ...base,
+        scores,
+        piece: ranked[0][0],
+        score: ranked[0][1],
+        margin: ranked[1][1] - ranked[0][1],
+        confidence: clamp(1 - ranked[0][1] * 2.2, 0, 1),
+        uncertain:
+          base.uncertain || changed || ranked[1][1] - ranked[0][1] < 0.006,
+      };
+    };
+    const isClear = (hit: ReturnType<typeof combineMatches>) =>
+      hit.piece === "."
+        ? hit.score < 0.025 && hit.margin > 0.04
+        : hit.score < 0.07 && hit.margin > 0.025 && !hit.uncertain;
+    const read24 = (index: number, dx = 0, dy = 0) => {
+      const x = crop.x + (index % 8) * cell,
+        y = crop.y + Math.floor(index / 8) * cell;
+      tx.clearRect(0, 0, 24, 24);
+      tx.drawImage(
+        img,
+        x + (dx * cell) / 24,
+        y + (dy * cell) / 24,
+        cell,
+        cell,
+        0,
+        0,
+        24,
+        24,
+      );
+      return feature(tx.getImageData(0, 0, 24, 24), 0, 0);
+    };
+    for (let index = 0; index < 64; index++) {
+      const x = crop.x + (index % 8) * cell,
+        y = crop.y + Math.floor(index / 8) * cell;
+      const first = read24(index),
+        coarse = combineMatches([classify(first.mask, first.color)]);
+      fx.clearRect(0, 0, 48, 48);
+      fx.drawImage(img, x, y, cell, cell, 0, 0, 48, 48);
+      const pixels = fx.getImageData(0, 0, 48, 48).data,
+        fine = separateForeground(pixels, 48);
+      const sample: PieceSample = {
+        mask: Array.from(fine.mask, (value) =>
+          Math.round(value * 15).toString(16),
+        ).join(""),
+        color: fine.color,
+        coarse: Array.from(first.mask, (value) =>
+          Math.round(value * 15).toString(16),
+        ).join(""),
+        style: "duo-teal-v1",
+      };
+      const library = refineWithLibrary(coarse.scores, sample, learned);
+      records.push({
+        first,
+        pixels,
+        fine,
+        sample,
+        personal: library.personalUsed,
+        anatomy: null,
+        hit: update(
+          coarse,
+          library.scores,
+          library.piece !== coarse.piece && !library.personalUsed,
+        ),
+      });
+    }
+    const clearCount = records.filter((record) => isClear(record.hit)).length;
+    const difficult = records
+      .flatMap((record, index) =>
+        !isClear(record.hit) || record.fine.edgeInk > 0.3 ? [index] : [],
+      )
+      .sort(
+        (a, b) =>
+          records[b].hit.score - records[a].hit.score ||
+          records[a].hit.margin - records[b].hit.margin,
+      );
+    const refine = (index: number) => {
+      const record = records[index];
+      const variants = [
+        record.first,
+        ...[
           [-0.3, 0],
           [0.3, 0],
           [0, -0.3],
           [0, 0.3],
-        ].map(([dx, dy]) => {
-          tx.clearRect(0, 0, 24, 24);
-          tx.drawImage(
-            img,
-            x + (dx * cell) / 24,
-            y + (dy * cell) / 24,
-            cell,
-            cell,
-            0,
-            0,
-            24,
-            24,
-          );
-          return feature(tx.getImageData(0, 0, 24, 24), 0, 0);
+        ].map(([dx, dy]) => read24(index, dx, dy)),
+      ];
+      for (const threshold of [8, 18]) {
+        const foreground = separateForeground(record.pixels, 48, threshold);
+        variants.push({
+          mask: reduceMask(foreground.mask, 48),
+          color: foreground.color,
         });
-        const coarse = combineMatches(
-          features.map((f) => classify(f.mask, f.color)),
-        );
-        fx.clearRect(0, 0, 48, 48);
-        fx.drawImage(img, x, y, cell, cell, 0, 0, 48, 48);
-        const fine = extractFine(fx.getImageData(0, 0, 48, 48).data);
-        const sample: PieceSample = {
-          ...fine,
-          coarse: Array.from(features[0].mask, (value) =>
-            Math.round(value * 15).toString(16),
-          ).join(""),
-          style: "duo-teal-v1",
-        };
-        const library = refineWithLibrary(coarse.scores, sample, learned);
-        const score = library.scores[library.piece];
-        hits.push({
-          ...coarse,
-          scores: library.scores,
-          piece: library.piece,
-          score,
-          margin: library.margin,
-          confidence: clamp(1 - score * 2.2, 0, 1),
-          uncertain:
-            coarse.uncertain ||
-            library.margin < 0.006 ||
-            (library.piece !== coarse.piece && !library.personalUsed),
-        });
-        samples.push(sample);
-        secondary.push(secondRead(features[0].mask, features[0].color));
-        personal.push(library.personalUsed);
       }
-    const inferred = inferDuolingoPosition(hits),
-      occupied = hits.filter((hit) => hit.piece !== ".");
+      const coarse = combineMatches(
+        variants.map((f) => classify(f.mask, f.color)),
+      );
+      const structure = refineStructure(
+        coarse.scores,
+        record.fine.mask,
+        48,
+        record.fine.color,
+      );
+      const library = refineWithLibrary(
+        structure.scores,
+        record.sample,
+        learned,
+      );
+      record.hit = update(
+        coarse,
+        library.scores,
+        library.piece !== coarse.piece && !library.personalUsed,
+      );
+      record.anatomy = structure.anatomy;
+      record.personal = library.personalUsed;
+      refined.push(index);
+    };
+    for (const index of difficult.slice(0, 16)) refine(index);
+    for (const index of difficult)
+      if (!refined.includes(index)) records[index].hit.uncertain = true;
+    const assemble = () => {
+      const consensus = frameConsensus(
+        records.map((record) => ({
+          ...record.hit,
+          mask: record.first.mask,
+          color: record.first.color,
+        })),
+      );
+      const hits = records.map((record, index) =>
+        update(
+          record.hit,
+          consensus.scores[index],
+          Object.entries(consensus.scores[index]).sort(
+            (a, b) => a[1] - b[1],
+          )[0][0] !== record.hit.piece,
+        ),
+      );
+      const inferred = inferDuolingoPosition(hits),
+        squares = inferred?.squares || hits.map((hit) => hit.piece);
+      const reconstruction = reconstructPosition(
+        records.map((record) => record.sample),
+        squares,
+        hits.map((hit, index) => isClear(hit) && hit.piece === squares[index]),
+      );
+      return { hits, inferred, squares, consensus, reconstruction };
+    };
+    let assembled = assemble();
+    const outliers = assembled.reconstruction.outliers;
+    const retry = outliers
+      .filter((index) => !refined.includes(index))
+      .slice(0, Math.max(0, 16 - refined.length));
+    if (outliers.length) {
+      for (const index of outliers) records[index].hit.uncertain = true;
+      retry.forEach(refine);
+      assembled = assemble();
+    }
+    const { hits, inferred, consensus } = assembled;
+    const samples = records.map((record) => record.sample),
+      personal = records.map((record) => record.personal);
+    const secondary = records.map((record) =>
+      secondRead(record.first.mask, record.first.color),
+    );
+    const occupied = hits.filter((hit) => hit.piece !== ".");
     const unfamiliar =
       occupied.length > 0 &&
       occupied.filter((hit) => hit.score > 0.16).length > occupied.length * 0.3;
@@ -437,6 +527,18 @@ export async function recognizeDuolingoScreenshot(
       samples,
       secondary,
       personal,
+      anatomy: records.map((record) => record.anatomy),
+      refined,
+      clearCount,
+      deferred: [
+        ...new Set([...difficult, ...assembled.reconstruction.outliers]),
+      ].filter((index) => !refined.includes(index)).length,
+      consensus,
+      reconstruction: reconstructPosition(
+        samples,
+        squares,
+        hits.map((hit, index) => isClear(hit) && hit.piece === squares[index]),
+      ),
       adjusted: inferred?.adjusted || [],
       promotionReview: temporal ? [] : inferred?.promotionReview || [],
       objective,
@@ -448,6 +550,27 @@ export async function recognizeDuolingoScreenshot(
   evaluated.sort((a, b) => a.objective - b.objective);
   const best = evaluated.find((candidate) => candidate.valid) || evaluated[0];
   diagnostics.selectedCrop = best.crop;
+  const coordinates = readCoordinates(img, best.crop);
+  diagnostics.coordinates = coordinates;
+  if (
+    coordinates.orientation &&
+    best.temporal &&
+    coordinates.orientation !== best.orientation
+  ) {
+    diagnostics.notes.push(
+      "Coordinate labels conflict with tracked orientation; review the screenshot crop.",
+    );
+    throw new RecognitionFailure(
+      "Coordinate labels and tracked game disagree. Stop tracking or adjust the board crop before rescanning.",
+      diagnostics,
+    );
+  }
+  if (coordinates.orientation) best.orientation = coordinates.orientation;
+  diagnostics.orientationSource = best.temporal
+    ? "tracked-game"
+    : coordinates.orientation
+      ? "coordinates"
+      : "piece-layout";
   const key = (visual: number) => {
     const index = best.orientation === "black" ? 63 - visual : visual;
     return "abcdefgh"[index % 8] + (8 - Math.floor(index / 8));
@@ -465,7 +588,24 @@ export async function recognizeDuolingoScreenshot(
     },
     agreed: best.squares[index] === best.secondary[index].piece,
     personal: best.personal[index],
+    refined: best.refined.includes(index),
+    anatomy: best.anatomy[index] || undefined,
+    consensusSeeds: best.consensus.changes
+      .find((change) => change.index === index)
+      ?.seeds.map((seed) => key(seed)),
+    reconstructionError: best.reconstruction.residuals[index],
   }));
+  diagnostics.processing = {
+    clearFirstPass: best.clearCount,
+    refined: best.refined.map(key),
+    deferred: best.deferred,
+    consensusSeeds: best.consensus.seeds,
+  };
+  diagnostics.reconstruction = {
+    checked: best.reconstruction.checked,
+    meanResidual: best.reconstruction.mean,
+    outliers: best.reconstruction.outliers.map(key),
+  };
   diagnostics.elapsedMs = Math.round(performance.now() - started);
   if (game)
     diagnostics.tracking = {
@@ -484,6 +624,7 @@ export async function recognizeDuolingoScreenshot(
       (hit.uncertain ||
         best.adjusted.includes(index) ||
         best.promotionReview.includes(index) ||
+        best.reconstruction.outliers.includes(index) ||
         modelDisagrees)
       ? [key(index)]
       : [];
@@ -492,6 +633,10 @@ export async function recognizeDuolingoScreenshot(
   const normalized =
     best.orientation === "black" ? [...best.squares].reverse() : best.squares;
   return {
+    reconstructionImage: renderReconstruction(
+      best.reconstruction,
+      best.squares,
+    ),
     reviewRequiredSquares: best.promotionReview.map(key),
     boardCrop: best.crop,
     squares: normalized,

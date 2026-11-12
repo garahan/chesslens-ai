@@ -1945,3 +1945,17 @@ summary::marker {
   width: 40px;
   height: 40px;
 }
+.reconstruction-preview {
+  margin: 12px 0;
+}
+.reconstruction-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+}
+.reconstruction-preview figcaption {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--color-text-soft);
+}

@@ -1,3 +1,4 @@
+import { separateForeground } from "./foreground.ts";
 export type PieceSample = {
   mask: string;
   color: number[];
@@ -10,42 +11,15 @@ export function extractFine(
   data: Uint8ClampedArray,
   size = 48,
 ): { mask: string; color: number[] } {
-  const at = (x: number, y: number) => {
-    const i = (y * size + x) * 4;
-    return [data[i], data[i + 1], data[i + 2]];
+  const foreground = separateForeground(data, size);
+  return {
+    mask: Array.from(foreground.mask, (v) =>
+      Math.round(v * 15).toString(16),
+    ).join(""),
+    color: foreground.color,
   };
-  const border: number[][] = [];
-  for (let i = 6; i < size - 6; i++) border.push(at(2, i), at(size - 3, i));
-  const bg = [0, 1, 2].map(
-    (c) =>
-      border.map((p) => p[c]).sort((a, b) => a - b)[
-        Math.floor(border.length / 2)
-      ],
-  );
-  let mask = "",
-    count = 0;
-  const color = [0, 0, 0];
-  for (let y = 0; y < size; y++)
-    for (let x = 0; x < size; x++) {
-      const p = at(x, y);
-      const strength =
-        x < 4 || x >= size - 4 || y < 4 || y >= size - 4
-          ? 0
-          : Math.max(
-              0,
-              Math.min(
-                1,
-                (Math.hypot(...p.map((v, i) => v - bg[i])) - 13) / 30,
-              ),
-            );
-      mask += Math.round(strength * 15).toString(16);
-      if (strength > 0.7) {
-        p.forEach((v, i) => (color[i] += v));
-        count++;
-      }
-    }
-  return { mask, color: count ? color.map((v) => v / count) : bg };
 }
+
 const decoded = new Map<string, Uint8Array>();
 function decode(mask: string) {
   let values = decoded.get(mask);

@@ -57,6 +57,9 @@ with sync_playwright() as p:
  page.get_by_role('button',name='Original screenshot',exact=True).wait_for(timeout=60000)
  expected='4r1k1/2p2ppp/5n2/p2p4/3P1P2/2P3P1/P3N2P/RN2K2R'
  assert page.locator('.editorfen').text_content().startswith(expected)
+ page.get_by_text('Recognition report',exact=True).click()
+ page.get_by_role('img',name='Reconstructed foreground board',exact=True).wait_for()
+ page.get_by_text('Recognition report',exact=True).click()
  assert page.get_by_role('checkbox',name='I verified the piece positions and orientation.').count()==0
  page.get_by_role('button',name='Black to move',exact=True).click()
  assert page.get_by_role('button',name='Analyze',exact=True).is_enabled()
@@ -88,5 +91,5 @@ with sync_playwright() as p:
  page.get_by_role('button',name='Retry',exact=True).click()
  page.get_by_text('Ready offline',exact=True).wait_for(timeout=120000)
  assert not errors,errors
- print(json.dumps({'offline':['cold reopen','saved position','Stockfish','ONNX scanner','Duolingo 64/64','learning and Undo','game tracking','missing-cache detection and repair'],'mobile':boxes,'errors':errors}))
+ print(json.dumps({'offline':['cold reopen','saved position','Stockfish','ONNX scanner','Duolingo 64/64','foreground reconstruction','learning and Undo','game tracking','missing-cache detection and repair'],'mobile':boxes,'errors':errors}))
  browser.close()
